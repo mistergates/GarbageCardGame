@@ -9,6 +9,9 @@ class CardFront(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
 
+    def reposition_on_mouse(self):
+        self.rect.center = pygame.mouse.get_pos()
+
 
 class CardBack(pygame.sprite.Sprite):
     def __init__(self, color, x, y, version=5):

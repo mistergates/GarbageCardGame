@@ -1,23 +1,29 @@
 import pygame
 import ctypes
+
 from . import cards
 from . import sprites
 
+# TODO
+# - Check for winner (all cards should be Reveal is True)
+# - Display whose turn it is
+
 class Game:
+
     def __init__(self):
         self.title = 'Garbage'
         self.fps = 90
         self.clock = pygame.time.Clock()
         self.screen_res = (ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1))
         self.screen = pygame.display.set_mode(self.screen_res, pygame.FULLSCREEN)
+        pygame.mouse.set_cursor(*pygame.cursors.arrow)
 
         # Background
         self.bg_image = pygame.image.load(cards.get_table())
         self.bg = pygame.transform.scale(self.bg_image, self.screen_res)
-        self.screen.blit(self.bg, (0, 0))
         self.bg_rect = self.bg.get_rect()
 
-        # Cards
+        # Card Sprites
         self.playing_deck = []
         self.playing_deck_group = pygame.sprite.Group()
         self.opponent_cards = {}
@@ -26,6 +32,8 @@ class Game:
         self.player_card_group = pygame.sprite.Group()
         self.discard_cards = []
         self.discard_card_group = pygame.sprite.Group()
+        self.card_in_hand = None
+        self.card_in_hand_group = pygame.sprite.Group()
 
         # Card Locations
         self.card_x = int((self.screen_res[0] / 2) - ((cards.CARD_DIMENSIONS[0] * 5) * .5)) + 40
@@ -39,9 +47,9 @@ class Game:
         self.player_cards_remaining = 10
         self.opponent_cards_remaining = 10
         self.setup = True
-        self.card_selected = None
         self.player_turn = True
         self.opponent_turn = False
+        self.card_selected = None
 
         # Mouse positioning
         self.mouse_x = 0
@@ -52,13 +60,25 @@ class Game:
         pygame.init()
         pygame.display.set_caption(self.title)
         while True:
+            self.screen.blit(self.bg, (0, 0))
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     return
 
-                if event.type == pygame.MOUSEBUTTONDOWN:
+                # Left click
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     self.mouse_x, self.mouse_y = event.pos
+
+                # Right click
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+                    if self.card_in_hand and self.card_selected:
+                        self._discard_card(self.card_selected)
+
+                if event.type == pygame.MOUSEMOTION:
+                    if self.card_in_hand:
+                        self.card_in_hand_group.update()
+                        self.card_in_hand.reposition_on_mouse()
 
                 if event.type == pygame.KEYDOWN:
                     # If pressed key is ESC quit program
@@ -88,72 +108,101 @@ class Game:
         If card was not clicked, we add card back image to the group (defautl state of card display).
         Lastly we draw the decks to the screen.
         """
-        # Player Cards
-        player_cards = self.player_card_group.copy()
-        self.player_card_group = pygame.sprite.Group()
-        for i, pc in enumerate(player_cards):
-            if pc.rect.collidepoint(self.mouse_x, self.mouse_y) and self.card_selected and self.player_turn:
-                if self.card_selected[0] in cards.WILD_CARDS or self.card_selected[0] == cards.CARD_MATCHES[i]:
-                    _x, _y = pc.rect.center
-                    self.discard_cards.append(self.player_cards[i]['Card'])
-                    self.discard_card_group.add(sprites.CardFront(self.player_cards[i]['Card'], self.discard_card_x, self.discard_card_y))
-                    self.player_cards[i]['Card'] = self.card_selected
-                    self.player_cards[i]['Front'] = sprites.CardFront(self.card_selected, _x, _y)
-                    self.player_card_group.add(self.player_cards[i]['Front'])
-                    self.player_cards[i]['Reveal'] = True
-                    self.card_selected = None
-                else:
-                    self.player_card_group.add(self.player_cards[i]['Back'])
-            elif self.player_cards[i]['Reveal'] == True:
-                self.player_card_group.add(self.player_cards[i]['Front'])
-            else:
-                self.player_card_group.add(self.player_cards[i]['Back'])
+        self._check_card_collision(player=True)
+        self._check_card_collision(opponent=True)
 
-        # Opponent Cards
-        opponent_cards = self.opponent_card_group.copy()
-        self.opponent_card_group = pygame.sprite.Group()
-        for i, pc in enumerate(opponent_cards):
-            if pc.rect.collidepoint(self.mouse_x, self.mouse_y) and self.card_selected and self.opponent_turn:
-                if self.card_selected[0] in cards.WILD_CARDS or self.card_selected[0] == cards.CARD_MATCHES[i]:
-                    _x, _y = pc.rect.center
-                    self.discard_cards.append(self.opponent_cards[i]['Card'])
-                    self.discard_card_group.add(sprites.CardFront(self.opponent_cards[i]['Card'], self.discard_card_x, self.discard_card_y))
-                    self.opponent_cards[i]['Card'] = self.card_selected
-                    self.opponent_cards[i]['Front'] = sprites.CardFront(self.card_selected, _x, _y)
-                    self.opponent_card_group.add(self.opponent_cards[i]['Front'])
-                    self.opponent_cards[i]['Reveal'] = True
-                    self.card_selected = None
-                else:
-                    self.opponent_card_group.add(self.opponent_cards[i]['Back'])
-            elif self.opponent_cards[i]['Reveal'] == True:
-                self.opponent_card_group.add(self.opponent_cards[i]['Front'])
-            else:
-                self.opponent_card_group.add(self.opponent_cards[i]['Back'])
-
-        # Discard Cards
-        for i, pc in enumerate(self.discard_card_group):
-            if pc.rect.collidepoint(self.mouse_x, self.mouse_y):
-                self.card_selected = self.discard_cards[-1]
-
+        # Draw from Discard Cards
+        # TODO If card is drawn from discard pile, we need to remove that card
+        for dc in self.discard_card_group:
+            if dc.rect.collidepoint(self.mouse_x, self.mouse_y):
+                if not self.card_selected:
+                    self._change_card_in_hand(self.discard_cards[-1]['Card'])
+                    self.discard_cards[-1]['Front'].remove()
+                    self.discard_cards[-1]['Front'].kill()
 
         # Draw Pile
         remaining_cards = self.playing_deck_group.copy()
         self.playing_deck_group = pygame.sprite.Group()
         for pc in remaining_cards:
             if pc.rect.collidepoint(self.mouse_x, self.mouse_y):
-                card = self.playing_deck.pop(0)
-                self.discard_cards.append(card)
-                self.discard_card_group.add(sprites.CardFront(card, self.discard_card_x, self.discard_card_y))
-                self.card_selected = None
+                if self.card_in_hand:
+                    self.card_in_hand.kill()
+                    self._discard_card(self.card_selected)
+                self._change_card_in_hand(self.playing_deck.pop(0))
             if len(self.playing_deck):
                 self.playing_deck_group.add(sprites.CardBack('blue', self.playing_deck_x, self.playing_deck_y))
-        
-        
+
         # Draw card groups to screen
         self.opponent_card_group.draw(self.screen)
         self.player_card_group.draw(self.screen)
         self.playing_deck_group.draw(self.screen)
         self.discard_card_group.draw(self.screen)
+        self.card_in_hand_group.draw(self.screen)
+
+
+    def _change_card_in_hand(self, card):
+        if self.card_in_hand:
+            # Kill the previous card in hand and add the new one from the table
+            self.card_in_hand.kill()
+
+        self.card_selected = card
+        self.card_in_hand = sprites.CardFront(self.card_selected, *pygame.mouse.get_pos())
+        self.card_in_hand_group.add(self.card_in_hand)
+
+
+    def _discard_card(self, card):
+        if self.card_in_hand:
+            self.card_in_hand.kill()
+
+        self.discard_cards.append({'Card': card, 'Front': sprites.CardFront(card, self.discard_card_x, self.discard_card_y)})
+        self.discard_card_group.add(sprites.CardFront(card, self.discard_card_x, self.discard_card_y))
+        self.card_selected = None
+
+        # Change turn after discard
+        if self.player_turn:
+            self.player_turn = False
+            self.opponent_turn = True
+        elif self.opponent_turn:
+            self.opponent_turn = False
+            self.player_turn = True
+
+
+    def _check_card_collision(self, player=False, opponent=False):
+        if player:
+            card_group = self.player_card_group
+            _cards = self.player_cards
+            turn = self.player_turn
+        elif opponent:
+            card_group = self.opponent_card_group
+            _cards = self.opponent_cards
+            turn = self.opponent_turn
+
+        card_group_copy = card_group.copy()
+        card_group = pygame.sprite.Group()
+        for i, pc in enumerate(card_group_copy):
+            if pc.rect.collidepoint(self.mouse_x, self.mouse_y) and self.card_selected and turn:
+                if self.card_selected[0] in cards.WILD_CARDS or self.card_selected[0] == cards.CARD_MATCHES[i]:
+                    x, y = pc.rect.center
+                    prev_card = _cards[i]['Card']
+                    _cards[i]['Card'] = self.card_selected
+                    _cards[i]['Front'] = sprites.CardFront(self.card_selected, x, y)
+                    card_group.add(_cards[i]['Front'])
+                    _cards[i]['Reveal'] = True
+
+                    self._change_card_in_hand(prev_card)
+                else:
+                    card_group.add(_cards[i]['Back'])
+            elif _cards[i]['Reveal'] == True:
+                card_group.add(_cards[i]['Front'])
+            else:
+                card_group.add(_cards[i]['Back'])
+
+        if player:
+            self.player_card_group = card_group
+            self.player_cards = _cards
+        elif opponent:
+            self.opponent_card_group = card_group
+            self.opponent_cards = _cards
 
 
     def _setup(self, num_decks=1):
@@ -211,7 +260,6 @@ class Game:
 
         # Remaining playing deck cards
         self.playing_deck_group.add(sprites.CardBack('blue', self.playing_deck_x, self.playing_deck_y))
-
 
 def play():
     game = Game()
