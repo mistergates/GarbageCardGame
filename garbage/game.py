@@ -125,7 +125,7 @@ class Game:
         self.playing_deck_group = pygame.sprite.Group()
         for pc in remaining_cards:
             if pc.rect.collidepoint(self.mouse_x, self.mouse_y):
-                if self.card_in_hand:
+                if self.card_in_hand and self.card_selected:
                     self.card_in_hand.kill()
                     self._discard_card(self.card_selected)
                 self._change_card_in_hand(self.playing_deck.pop(0))
