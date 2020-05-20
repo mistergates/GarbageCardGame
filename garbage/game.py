@@ -7,6 +7,7 @@ from . import sprites
 # TODO
 # - Check for winner (all cards should be Reveal is True)
 # - Display whose turn it is
+# - Draw opponent cards from top Y and characte cards from bottom Y
 
 class Game:
 
