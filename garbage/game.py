@@ -1,13 +1,11 @@
 import pygame
 import ctypes
 
-from . import cards
-from . import sprites
+from . import cards, sprites, buttons, fonts, rules
 
 # TODO
-# - Check for winner (all cards should be Reveal is True)
-# - Display whose turn it is
-# - Draw opponent cards from top Y and characte cards from bottom Y
+# Create a super class that holds all the variables that should reset each setup
+# This can be loaded each setup (sprite groups, cards, etc.)
 
 class Game:
 
@@ -16,13 +14,18 @@ class Game:
         self.fps = 90
         self.clock = pygame.time.Clock()
         self.screen_res = (ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1))
-        self.screen = pygame.display.set_mode(self.screen_res, pygame.FULLSCREEN)
+        self.display = pygame.display.set_mode(self.screen_res, pygame.FULLSCREEN)
         pygame.mouse.set_cursor(*pygame.cursors.arrow)
 
         # Background
         self.bg_image = pygame.image.load(cards.get_table())
         self.bg = pygame.transform.scale(self.bg_image, self.screen_res)
         self.bg_rect = self.bg.get_rect()
+
+        # Colors
+        self.player_color = 'blue'
+        self.opponent_color = 'green'
+        self.stock_color = 'red'
 
         # Card Sprites
         self.playing_deck = []
@@ -35,6 +38,11 @@ class Game:
         self.discard_card_group = pygame.sprite.Group()
         self.card_in_hand = None
         self.card_in_hand_group = pygame.sprite.Group()
+
+        # Button Sprites
+        self.buttons_map = {}
+        self.buttons_group = pygame.sprite.Group()
+        self.button_text = []
 
         # Card Locations
         self.card_x = int((self.screen_res[0] / 2) - ((cards.CARD_DIMENSIONS[0] * 5) * .5)) + 40
@@ -51,6 +59,7 @@ class Game:
         self.player_turn = True
         self.opponent_turn = False
         self.card_selected = None
+        self.rules_displayed = False
 
         # Mouse positioning
         self.mouse_x = 0
@@ -61,7 +70,7 @@ class Game:
         pygame.init()
         pygame.display.set_caption(self.title)
         while True:
-            self.screen.blit(self.bg, (0, 0))
+            self.display.blit(self.bg, (0, 0))
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -87,19 +96,58 @@ class Game:
                         pygame.quit()
                         return
 
+            self._check_for_winner()
+
             # Setup a new game if needed
             if self.setup: 
                 self._setup()
                 self.setup = False
 
-            # Draw Cards
+            # Check collisions
+            self._check_button_collision()
+            self._check_card_collision(player=True)
+            self._check_card_collision(opponent=True)
+            self._check_stock_collision()
+
+            # Draw Sprites
+            self._display_turn()
             self._draw_cards()
+            self._draw_buttons()
+            self._draw_rules()
 
             # Reset between ticks
             self.mouse_x, self.mouse_y = 0, 0
 
             pygame.display.update()
             self.clock.tick(self.fps)
+
+
+    def _check_for_winner(self):
+        # Check for round winner
+        player_not_revealed = self.player_cards_remaining
+        for i in self.player_cards:
+            player_not_revealed -= 1 if self.player_cards[i]['Reveal'] else 0
+
+        opponent_not_revealed = self.opponent_cards_remaining
+        for i in self.opponent_cards:
+            opponent_not_revealed -= 1 if self.opponent_cards[i]['Reveal'] else 0
+
+        if player_not_revealed == 0:
+            print('PLAYER WINS ROUND!')
+            self.player_cards_remaining -= 1
+            self.setup = True
+        elif opponent_not_revealed == 0:
+            print('OPPONENT WINS ROUND!')
+            self.player_cards_remaining -= 1
+            self.setup = True
+
+        # Check for game winner
+        if self.player_cards_remaining == 0:
+            print('PLAYER WINS GAME!')
+            exit()
+        elif self.opponent_cards_remaining == 0:
+            print('OPPONENT WINS GAME!')
+            exit()
 
 
     def _draw_cards(self):
@@ -109,36 +157,12 @@ class Game:
         If card was not clicked, we add card back image to the group (defautl state of card display).
         Lastly we draw the decks to the screen.
         """
-        self._check_card_collision(player=True)
-        self._check_card_collision(opponent=True)
-
-        # Draw from Discard Cards
-        # TODO If card is drawn from discard pile, we need to remove that card
-        for dc in self.discard_card_group:
-            if dc.rect.collidepoint(self.mouse_x, self.mouse_y):
-                if not self.card_selected:
-                    self._change_card_in_hand(self.discard_cards[-1]['Card'])
-                    self.discard_cards[-1]['Front'].remove()
-                    self.discard_cards[-1]['Front'].kill()
-
-        # Draw Pile
-        remaining_cards = self.playing_deck_group.copy()
-        self.playing_deck_group = pygame.sprite.Group()
-        for pc in remaining_cards:
-            if pc.rect.collidepoint(self.mouse_x, self.mouse_y):
-                if self.card_in_hand and self.card_selected:
-                    self.card_in_hand.kill()
-                    self._discard_card(self.card_selected)
-                self._change_card_in_hand(self.playing_deck.pop(0))
-            if len(self.playing_deck):
-                self.playing_deck_group.add(sprites.CardBack('blue', self.playing_deck_x, self.playing_deck_y))
-
         # Draw card groups to screen
-        self.opponent_card_group.draw(self.screen)
-        self.player_card_group.draw(self.screen)
-        self.playing_deck_group.draw(self.screen)
-        self.discard_card_group.draw(self.screen)
-        self.card_in_hand_group.draw(self.screen)
+        self.opponent_card_group.draw(self.display)
+        self.player_card_group.draw(self.display)
+        self.playing_deck_group.draw(self.display)
+        self.discard_card_group.draw(self.display)
+        self.card_in_hand_group.draw(self.display)
 
 
     def _change_card_in_hand(self, card):
@@ -205,17 +229,127 @@ class Game:
             self.opponent_card_group = card_group
             self.opponent_cards = _cards
 
+    def _check_stock_collision(self):
+        # Draw from Discard Cards
+        # TODO If card is drawn from discard pile, we need to remove that card
+        for dc in self.discard_card_group.copy():
+            if dc.rect.collidepoint(self.mouse_x, self.mouse_y):
+                if not self.card_selected:
+                    dc.kill()
+                    self._change_card_in_hand(self.discard_cards.pop(-1)['Card'])
+                    if len(self.discard_cards):
+                        card = self.discard_cards[-1]['Card']
+                        self.discard_card_group.add(sprites.CardFront(card, self.discard_card_x, self.discard_card_y))
+
+        # Draw Pile
+        remaining_cards = self.playing_deck_group.copy()
+        self.playing_deck_group = pygame.sprite.Group()
+        for pc in remaining_cards:
+            if pc.rect.collidepoint(self.mouse_x, self.mouse_y):
+                if self.card_in_hand and self.card_selected:
+                    self.card_in_hand.kill()
+                    self._discard_card(self.card_selected)
+                self._change_card_in_hand(self.playing_deck.pop(0))
+            if len(self.playing_deck):
+                self.playing_deck_group.add(sprites.CardBack(self.stock_color, self.playing_deck_x, self.playing_deck_y))
+
+
+    def _draw_buttons(self):
+        self.buttons_group.draw(self.display)
+        for button_text in self.button_text:
+            self.display.blit(*button_text)
+
+
+    def _check_button_collision(self):
+        for i, button in enumerate(self.buttons_group):
+            if button.rect.collidepoint(self.mouse_x, self.mouse_y):
+                if self.buttons_map[i] == 'Rules':
+                    if self.rules_displayed is False:
+                        self.rules_displayed = True
+                    else:
+                        self.rules_displayed = False
+
+
+    def _draw_rules(self):
+        if not self.rules_displayed:
+            return
+
+        # Text
+        header = pygame.font.Font(fonts.get_font(style='Bold'), 24)
+        font = pygame.font.Font(fonts.get_font(style='Regular'), 18)
+        color = (255,255,255)
+        words = [word.split(' ') for word in rules.RULES.splitlines()]
+        space = font.size(' ')[0]
+        max_width = self.display.get_size()[0] - 10
+        pos = 10, 10
+        x, y = pos
+        words_to_blit = []
+        for line in words:
+            for word in line:
+                if '##' in line[0]:
+                    word_surface = header.render(word.replace('##', ''), 0, color)
+                else:
+                    word_surface = font.render(word, 0, color)
+                word_width, word_height = word_surface.get_size()
+                if x + word_width >= max_width:
+                    x = pos[0]  # Reset the x.
+                    y += word_height  # Start on new row.
+                words_to_blit.append((word_surface, (x, y)))
+                x += word_width + space
+            x = pos[0]  # Reset the x.
+            y += word_height  # Start on new row.
+
+        # Draw background
+        s = pygame.Surface((self.screen_res[0], y + 10), pygame.SRCALPHA)
+        s.fill((0,0,0,200))
+        self.display.blit(s, (0,0))
+
+        # Draw words
+        for word in words_to_blit:
+            self.display.blit(*word)
+
+
+    def _display_turn(self):
+        if self.player_turn:
+            text = "Player's Turn"
+        else:
+            text = "Opponent's Turn"
+
+        font = pygame.font.Font(fonts.get_font(style='Bold'), 36)
+        color = (255,255,255)
+        x = self.screen_res[0] / 2
+        y = self.screen_res[1] / 2
+        text = font.render(text, 0, color)
+        text_rect = text.get_rect()
+        text_rect.centerx, text_rect.centery = (x, y)
+        self.display.blit(text, text_rect)
+
 
     def _setup(self, num_decks=1):
         self.playing_deck = cards.build_decks(num_decks=num_decks)
+        self.playing_deck_group = pygame.sprite.Group()
+        self.opponent_cards = {}
+        self.opponent_card_group = pygame.sprite.Group()
+        self.player_cards = {}
+        self.player_card_group = pygame.sprite.Group()
+        self.discard_cards = []
+        self.discard_card_group = pygame.sprite.Group()
+        self.card_in_hand = None
+        self.card_in_hand_group = pygame.sprite.Group()
+        self.buttons_map = {}
+        self.buttons_group = pygame.sprite.Group()
+        self.button_text = []
 
         # Opponent Cards
-        x, y = self.card_x, self.card_y
+        # opponent_x = int((self.screen_res[0] / 2) + ((cards.CARD_DIMENSIONS[0] * 5) * .5)) - 20
+        opponent_x = (self.screen_res[0] / 2) + (cards.CARD_DIMENSIONS[0] * 2)
+        x = opponent_x
+        y = cards.CARD_DIMENSIONS[1] * 1.75
         for i in range(self.opponent_cards_remaining):
             card = self.playing_deck.pop(0)
             self.opponent_cards[i] = {
                 'Card': card,
-                'Back': sprites.CardBack('red', x, y),
+                'Back': sprites.CardBack(self.opponent_color, x, y),
                 'Front': sprites.CardFront(card, x, y),
                 'Reveal': False
             }
@@ -225,22 +359,26 @@ class Game:
 
             # Increment x with card width + buffer of 10 px
             # This adds space of 10 px between each card
-            x += cards.CARD_DIMENSIONS[0] + 10
+            x -= cards.CARD_DIMENSIONS[0] + 10
 
             if i == 4:
                 # 5 cards per row max, create a second row
                 # Increment y with card height + buffer of 10 px
                 # This adds a space of 10px between rows
-                x = self.card_x
-                y += cards.CARD_DIMENSIONS[1] + 10
+                x = opponent_x
+                y -= cards.CARD_DIMENSIONS[1] + 10
 
         # Player Cards
-        x, y = self.card_x, y + (cards.CARD_DIMENSIONS[1] * 2)
+        # x, y = self.card_x, y + (cards.CARD_DIMENSIONS[1] * 2)
+        # player_x = int((self.screen_res[0] / 2) - ( (cards.CARD_DIMENSIONS[0] * 5) * .5) ) + 20
+        player_x = (self.screen_res[0] / 2) - (cards.CARD_DIMENSIONS[0] * 2)
+        x = player_x
+        y = self.screen_res[1] - (cards.CARD_DIMENSIONS[1] * 1.75)
         for i in range(self.player_cards_remaining):
             card = self.playing_deck.pop(0)
             self.player_cards[i] = {
                 'Card': card,
-                'Back': sprites.CardBack('green', x, y),
+                'Back': sprites.CardBack(self.player_color, x, y),
                 'Front': sprites.CardFront(card, x, y),
                 'Reveal': False
             }
@@ -256,11 +394,25 @@ class Game:
                 # 5 cards per row max, create a second row
                 # Increment y with card height + buffer of 10 px
                 # This adds a space of 10px between rows
-                x = self.card_x
+                x = player_x
                 y += cards.CARD_DIMENSIONS[1] + 10    
 
         # Remaining playing deck cards
-        self.playing_deck_group.add(sprites.CardBack('blue', self.playing_deck_x, self.playing_deck_y))
+        self.playing_deck_group.add(sprites.CardBack(self.stock_color, self.playing_deck_x, self.playing_deck_y))
+
+        # Buttons
+        font = pygame.font.Font(fonts.get_font(style='Bold'), 28)
+        font_color = (0,0,0)
+
+        # Rules button
+        rules_button = sprites.Button('yellow', (buttons.BUTTON_DIMENSIONS[0] / 2) + 20, self.screen_res[1] - (buttons.BUTTON_DIMENSIONS[1] / 2) - 20)
+        rules_button_text = font.render("Rules", True, font_color)
+        rbt_rect = rules_button_text.get_rect()
+        rbt_rect.centerx, rbt_rect.centery = rules_button.rect.center
+        self.buttons_group.add(rules_button)
+        self.button_text.append((rules_button_text, rbt_rect))
+        self.buttons_map[0] = 'Rules'
+
 
 def play():
     game = Game()

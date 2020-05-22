@@ -1,10 +1,12 @@
+'''
+Card image assets obtained from Kenney.nl:
+www.kenney.nl
+'''
 import os
 from random import sample
 
-# Card image assets obtained from Kenney.nl:
-# www.kenney.nl
 
-ASSETS_LOC = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'Cards')
+ASSETS_LOC = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'assets', 'cards')
 CARD_DIMENSIONS = (140, 190)
 CARD_VALS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'A']
 CARD_MATCHES = {0: 'A', 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10}
