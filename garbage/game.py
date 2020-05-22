@@ -6,6 +6,7 @@ from . import cards, sprites, buttons, fonts, rules
 # TODO
 # Create a super class that holds all the variables that should reset each setup
 # This can be loaded each setup (sprite groups, cards, etc.)
+# If a discard card is selected then discarded again, it should not end turn (let player choose from stock)
 
 class Game:
 
