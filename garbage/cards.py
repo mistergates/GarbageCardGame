@@ -13,6 +13,7 @@ CARD_MATCHES = {0: 'A', 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10}
 CARD_SUITS = ['Clubs', 'Diamonds', 'Hearts', 'Spades']
 CARD_BACK_COLORS = ['red', 'blue', 'green']
 WILD_CARDS = ['J']
+DEAD_CARDS = ['Q', 'K']
 
 
 def get_table():
