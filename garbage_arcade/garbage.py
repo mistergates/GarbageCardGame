@@ -3,15 +3,20 @@ Garbage Card Game (AKA Trash)
 
 Created by Mitch Gates (github.com/mistergates)
 
+=====
 TODO
+=====
 MUST HAVE:
-1. Redraw screen correctly when there is a winner
-2. Setup computer AI
-3. Show winner when no remaining cards left for player/computer
+------------
+- Redraw screen correctly when there is a winner
+- Shuffle cards from discard pile back into a draw pile if we run out
+- Setup computer AI
+- Show winner when no remaining cards left for player/computer
 
 NICE TO HAVE:
-1. Escape Menu
-
+-------------
+- Escape Menu (Exit, Music Toggle)
+- Music
 '''
 import arcade
 import ctypes
@@ -260,8 +265,10 @@ class Garbage(arcade.Window):
 
     def is_card_playable(self, card):
         """Checks to see if card in hand is playable on card"""
+        # Check to see if 
         if card.display is True:
-            return False if card.value not in cards.WILD_CARDS else True
+            if card.value not in cards.WILD_CARDS:
+                return False
 
         if self.card_in_hand.value in cards.WILD_CARDS:
             return True
