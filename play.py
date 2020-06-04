@@ -1,4 +1,6 @@
 from garbage import game
+from garbage_arcade import main
 
 if __name__ == '__main__':
-    game.play()
+    # game.play()
+    main.play()
