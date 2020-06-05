@@ -21,26 +21,84 @@ class MainMenu(arcade.View):
         self.title_list = arcade.SpriteList()
 
         # Buttons
-        self.play_button_list = arcade.SpriteList()
-        self.rules_button_list = arcade.SpriteList()
+        self.buttons_list = arcade.SpriteList()
+
+
+    def on_show(self):
+        """Runs on first render"""
+        self.create_sprites()
+
+    def on_update(self, delta_time):
+        """Check for menu item selections"""
+        pass
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        buttons_list = self.buttons_list
+        self.buttons_list = arcade.SpriteList()
+
+        for button in buttons_list:
+            if button.hover:
+                new_button = sprites.TitleScreenButton(
+                    button.hover_state,
+                    default_state=button.default_state,
+                    hover_state=button.hover_state
+                )
+                new_button.hover = True
+            else:
+                new_button = sprites.TitleScreenButton(
+                    button.default_state,
+                    default_state=button.default_state,
+                    hover_state=button.hover_state
+                )
+                new_button.hover = False
+            new_button.position = button.position
+            self.buttons_list.append(new_button)
+
+        # Reset all buttons back to no hover
+        for button in self.buttons_list:
+            button.hover = False
+
+        # Set the button being hovered to true
+        for button in arcade.get_sprites_at_point((x, y), self.buttons_list):
+            button.hover = True
+
+    def on_draw(self):
+        """Render the screen"""
+        # This command has to happen before we start drawing
+        arcade.start_render()
 
         arcade.set_background_color(arcade.color.DARK_SLATE_BLUE)
 
-    def get_sprite_pos(self, title=False, play=False, rules=False):
+        # Draw title screen sprites
+        self.title_list.draw()
+        self.buttons_list.draw()
+
+    def on_mouse_press(self, x, y, button, key_modifiers):
+        """Check for sprite collisions"""
+        for button in arcade.get_sprites_at_point((x, y), self.buttons_list):
+            if button.default_state == TitleScreenButtons.play.value:
+                self.window.show_view(self.window.game_view)
+                if not self.window.game_view.game_started:
+                    self.window.game_view.setup()
+                self.window.game_view.game_paused = False
+            if button.default_state == TitleScreenButtons.quit.value:
+                exit()
+
+    def get_sprite_pos(self, title=False, play=False, rules=False, quit=False):
+        """Get desired sprite positions based on screen size"""
         if title:
             return self.screen_width / 2, self.screen_height / 2
         if play:
             return self.screen_width / 2, self.screen_height / 2 - 200
         if rules:
             return self.screen_width / 2, self.screen_height / 2 - 275
-
-    def on_show(self):
-        self.create_sprites()
+        if quit:
+            return self.screen_width / 2, self.screen_height / 2 - 350
 
     def create_sprites(self):
+        """Create sprites dispalyed on title screen"""
         self.title_list = arcade.SpriteList()
-        self.play_button_list = arcade.SpriteList()
-        self.rules_button_list = arcade.SpriteList()
+        self.buttons_list = arcade.SpriteList()
 
         # Title screen
         title = sprites.Title()
@@ -48,31 +106,30 @@ class MainMenu(arcade.View):
         self.title_list.append(title)
 
         # Play Button
-        play_button = sprites.TitleScreenButton(TitleScreenButtons.play.value)
+        play_button = sprites.TitleScreenButton(
+            TitleScreenButtons.play.value,
+            default_state=TitleScreenButtons.play.value,
+            hover_state=TitleScreenButtons.play_hover.value)
         play_button.position = self.get_sprite_pos(play=True)
-        self.play_button_list.append(play_button)
+        self.buttons_list.append(play_button)
 
         # Rules button
-        rules_button = sprites.TitleScreenButton(TitleScreenButtons.rules.value)
+        rules_button = sprites.TitleScreenButton(
+            TitleScreenButtons.rules.value,
+            default_state=TitleScreenButtons.rules.value,
+            hover_state=TitleScreenButtons.rules_hover.value)
         rules_button.position = self.get_sprite_pos(rules=True)
-        self.rules_button_list.append(rules_button)
+        self.buttons_list.append(rules_button)
 
-    def on_draw(self):
-        """Render the screen"""
-        # This command has to happen before we start drawing
-        arcade.start_render()
+        # Quit button
+        quit_button = sprites.TitleScreenButton(
+            TitleScreenButtons.quit.value,
+            default_state=TitleScreenButtons.quit.value,
+            hover_state=TitleScreenButtons.quit_hover.value)
+        quit_button.position = self.get_sprite_pos(quit=True)
+        self.buttons_list.append(quit_button)
 
-        # Draw title screen sprites
-        self.title_list.draw()
-        self.play_button_list.draw()
-        self.rules_button_list.draw()
-
-    def on_mouse_press(self, _x, _y, _button, _modifiers):
-        """ If the user presses the mouse button, start the game. """
-        game_view = Garbage()
-        self.window.show_view(game_view)
-        game_view.setup()
-
+    
 class Garbage(arcade.View):
     """Main Garbage card game class"""
 
@@ -84,8 +141,6 @@ class Garbage(arcade.View):
         self.screen_width = self.window.screen_width
         self.screen_height = self.window.screen_height
 
-        arcade.set_background_color(arcade.color.AMAZON)
-
         # Card lists (cards on playing board)
         self.player_card_list = None
         self.computer_card_list = None
@@ -94,6 +149,8 @@ class Garbage(arcade.View):
         self.card_in_hand_list = None
 
         # Game State
+        self.game_started = False
+        self.paused = False
         self.player_cards_remain = 10
         self.computer_cards_remain = 10
         self.current_round = 1
@@ -103,12 +160,15 @@ class Garbage(arcade.View):
 
     def setup(self):
         """Sets up the game. This should be called each time a round starts"""
+        # Reset game states
         self.player_card_list = arcade.SpriteList()
         self.computer_card_list = arcade.SpriteList()
         self.draw_pile_list = arcade.SpriteList()
         self.discard_pile_list = arcade.SpriteList()
         self.card_in_hand_list = arcade.SpriteList()
+        self.game_started = True
 
+        # Build a deck
         starting_deck = cards.build_decks(NUMBER_OF_DECKS)
 
         # Create player cards
@@ -147,7 +207,7 @@ class Garbage(arcade.View):
             self.draw_pile_list.append(card)
 
         # Update the window's card positions
-        self.window.update_card_positions()
+        self.update_card_positions()
 
     def on_mouse_press(self, x, y, button, key_modifiers):
         """Called when the user presses a mouse button"""
@@ -240,6 +300,8 @@ class Garbage(arcade.View):
         # This command has to happen before we start drawing
         arcade.start_render()
 
+        arcade.set_background_color(arcade.color.AMAZON)
+
         # Draw a grid to show absolute center
         # arcade.draw_line(
         #     start_x=0,
@@ -281,18 +343,13 @@ class Garbage(arcade.View):
 
     def is_card_playable(self, card):
         """Checks to see if card in hand is playable on card"""
-        # Check to see if 
-        if card.display is True:
-            if card.value not in cards.WILD_CARDS:
-                return False
+        if card.display is True and card.value not in cards.WILD_CARDS:
+            return False
 
         if self.card_in_hand.value in cards.WILD_CARDS:
             return True
 
-        if cards.CARD_MATCHES[card.index] == self.card_in_hand.value:
-            return True
-
-        return False
+        return cards.CARD_MATCHES[card.index] == self.card_in_hand.value
 
     def calc_card_pos(self, computer=False, player=False, draw=False, discard=False):
         """
@@ -313,6 +370,56 @@ class Garbage(arcade.View):
             y = self.screen_height / 2
 
         return x, y
+
+    def update_card_positions(self):
+        """Updates the position of the cards based on screen size"""
+        # Create local copies of card sprite groups and re-create sprite groups
+        player_card_list = self.player_card_list
+        computer_card_list = self.computer_card_list
+        draw_pile_list = self.draw_pile_list
+        discard_pile_list = self.discard_pile_list
+        self.player_card_list = arcade.SpriteList()
+        self.computer_card_list = arcade.SpriteList()
+        self.draw_pile_list = arcade.SpriteList()
+        self.discard_pile_list = arcade.SpriteList()
+
+        # Position Player Cards
+        x, y = self.calc_card_pos(player=True)
+        x_orig = x
+        for i, card in enumerate(player_card_list):
+            if i == 5:
+                # Maximum of 5 cards per row, restart at orig x for next row
+                y -= cards.CARD_HEIGHT + cards.CARD_BUFFER_Y
+                x = x_orig
+
+            card.position = x, y
+            self.player_card_list.append(card)
+            x += cards.CARD_WIDTH + cards.CARD_BUFFER_X
+
+        # Position Computer cards
+        x, y = self.calc_card_pos(computer=True)
+        x_orig = x
+        for i, card in enumerate(computer_card_list):
+            if i == 5:
+                # Maximum of 5 cards per row, restart at orig x for next row
+                y += cards.CARD_HEIGHT + cards.CARD_BUFFER_Y
+                x = x_orig
+
+            card.position = x, y
+            self.computer_card_list.append(card)
+            x -= cards.CARD_WIDTH + cards.CARD_BUFFER_X
+
+        # Position draw pile cards
+        x, y = self.calc_card_pos(draw=True)
+        for card in draw_pile_list:
+            card.position = x, y
+            self.draw_pile_list.append(card)
+
+        # Position the discard pile cards
+        x, y = self.calc_card_pos(discard=True)
+        for card in discard_pile_list:
+            card.position = x, y
+            self.discard_pile_list.append(card)
 
     def check_for_winner(self):
         num_cards_displayed = 0

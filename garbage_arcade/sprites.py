@@ -17,9 +17,14 @@ class Title(arcade.Sprite):
 class TitleScreenButton(arcade.Sprite):
     """ Title screen play button """
 
-    def __init__(self, image, scale=1):
+    def __init__(self, image, default_state=None, hover_state=None, scale=1):
         # Image to use for the sprite when face up
+        self.image_scale = scale
+        self.default_state = default_state
+        self.hover_state = hover_state
         self.image_file_name = os.path.join(ASSETS_LOC, image)
+
+        self.hover = False
 
         # Call the parent
         super().__init__(self.image_file_name, scale, calculate_hit_box=False)
