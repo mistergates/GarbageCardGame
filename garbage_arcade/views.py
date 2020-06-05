@@ -4,6 +4,7 @@ from arcade.gui import *
 
 from . import cards, sprites
 from .enums import Views, TitleScreenButtons
+from .computer_ai import ComputerAi
 
 NUMBER_OF_DECKS = 1
 
@@ -153,61 +154,20 @@ class Garbage(arcade.View):
         self.paused = False
         self.player_cards_remain = 10
         self.computer_cards_remain = 10
-        self.current_round = 1
+        self.current_round = 0
         self.player_turn = True
         self.computer_turn = False
         self.card_in_hand = None
 
-    def setup(self):
-        """Sets up the game. This should be called each time a round starts"""
-        # Reset game states
-        self.player_card_list = arcade.SpriteList()
-        self.computer_card_list = arcade.SpriteList()
-        self.draw_pile_list = arcade.SpriteList()
-        self.discard_pile_list = arcade.SpriteList()
-        self.card_in_hand_list = arcade.SpriteList()
-        self.game_started = True
+        # Computer AI
+        self.computer_ai = ComputerAi(self)
 
-        # Build a deck
-        starting_deck = cards.build_decks(NUMBER_OF_DECKS)
+    def on_update(self, delta_time):
+        # Check to see if we have a winner
+        self.check_for_winner()
 
-        # Create player cards
-        for i in range(self.player_cards_remain):
-            card = sprites.CardBack(
-                cards.PLAYER_COLOR,
-                version=cards.CARD_BACK_VERSION,
-                scale=cards.CARD_SCALE
-            )
-            card.value, card.suit = starting_deck.pop(0)
-            card.display = False
-            card.index = i
-            self.player_card_list.append(card)
-
-        # Create computer cards
-        for i in range(self.computer_cards_remain):
-            card = sprites.CardBack(
-                cards.COMPUTER_COLOR,
-                version=cards.CARD_BACK_VERSION,
-                scale=cards.CARD_SCALE
-            )
-            card.value, card.suit = starting_deck.pop(0)
-            card.display = False
-            card.index = i
-            self.computer_card_list.append(card)
-
-        # Create draw pile
-        for x in starting_deck:
-            card = sprites.CardBack(
-                cards.DRAW_PILE_COLOR,
-                version=cards.CARD_BACK_VERSION,
-                scale=cards.CARD_SCALE
-            )
-            card.value, card.suit = x
-            card.display = False
-            self.draw_pile_list.append(card)
-
-        # Update the window's card positions
-        self.update_card_positions()
+        if self.computer_turn:
+            self.computer_ai.play_turn(self.card_in_hand)
 
     def on_mouse_press(self, x, y, button, key_modifiers):
         """Called when the user presses a mouse button"""
@@ -217,43 +177,15 @@ class Garbage(arcade.View):
 
         # Discard on right-click
         if button == arcade.MOUSE_BUTTON_RIGHT and self.card_in_hand:
-            card = sprites.CardFront(self.card_in_hand.suit, self.card_in_hand.value, cards.CARD_SCALE)
-            card.position = self.calc_card_pos(discard=True)
-            self.discard_pile_list.append(card)
-            self.card_in_hand.kill()
-            self.card_in_hand = None
-
-            # End the player's turn on discard
-            # self.player_turn = False
-            # self.computer_turn = True
+            self.discard_card_in_hand()
 
         # Check draw pile
-        draw_pile_cards = arcade.get_sprites_at_point((x, y), self.draw_pile_list)
-        if draw_pile_cards and not self.card_in_hand:
-            # Grab the top card from the deck
-            card = draw_pile_cards[-1]
-            card_front = sprites.CardFront(card.suit, card.value, scale=cards.CARD_SCALE)
-            card_front.position = x, y
-            card_front.display = True
-            # Assign the card drawn to hand
-            self.card_in_hand = card_front
-            self.card_in_hand_list.append(card_front)
-            # Kill the card in the draw pile
-            card.kill()
+        if arcade.get_sprites_at_point((x, y), self.draw_pile_list) and not self.card_in_hand:
+            self.get_card_from_draw_pile(x, y)
 
         # Check discard pile
-        discard_pile_cards = arcade.get_sprites_at_point((x, y), self.discard_pile_list)
-        if discard_pile_cards and not self.card_in_hand:
-            # Grab the top card from the deck
-            card = discard_pile_cards[-1]
-            card_front = sprites.CardFront(card.suit, card.value, scale=cards.CARD_SCALE)
-            card_front.position = x, y
-            card_front.display = True
-            # Assign the card drawn to hand
-            self.card_in_hand = card_front
-            self.card_in_hand_list.append(card_front)
-            # Kill the card in the draw pile
-            card.kill()
+        if arcade.get_sprites_at_point((x, y), self.discard_pile_list) and not self.card_in_hand:
+            self.get_card_from_discard_pile(x, y)
 
         # Check collision with player's cards
         player_table_card = arcade.get_sprites_at_point((x, y), self.player_card_list)
@@ -262,38 +194,14 @@ class Garbage(arcade.View):
 
             # Check to see if card is playable
             if self.is_card_playable(card):
-                print(f'{self.card_in_hand.value} is playable for card at index {card.index}')
-                card_from_table = sprites.CardFront(card.suit, card.value, scale=cards.CARD_SCALE)
-                card_from_table.position = x, y
+                self.play_card_in_hand(card, x, y)
 
-                # Place card in hand on table
-                self.player_card_list[card.index] = self.card_in_hand
-                self.player_card_list[card.index].position = card.position
-                self.player_card_list[card.index].index = card.index
-
-                # Kill current card in hand
-                self.card_in_hand.kill()
-
-                self.card_in_hand = card_from_table
-                self.card_in_hand_list.append(card_from_table)
-
-                card.kill()
-
-    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
-        """ User moves mouse """
-
+    def on_mouse_motion(self, x, y, dx, dy):
+        """Mouse Movement"""
         # If we are holding cards, move them with the mouse
-        if self.card_in_hand_list:
+        if self.card_in_hand_list and self.player_turn:
             self.card_in_hand_list[0].center_x += dx
             self.card_in_hand_list[0].center_y += dy
-
-    def on_update(self, delta_time):
-        # Set screen width
-        # self.screen_width = self.window.screen_width
-        # self.screen_height = self.window.screen_height
-
-        # Check to see if we have a winner
-        self.check_for_winner()
 
     def on_draw(self):
         """Render the screen"""
@@ -340,6 +248,62 @@ class Garbage(arcade.View):
         self.draw_pile_list.draw()
         self.discard_pile_list.draw()
         self.card_in_hand_list.draw()
+
+    def play_card_in_hand(self, card, x, y):
+        card_from_table = sprites.CardFront(card.suit, card.value, scale=cards.CARD_SCALE)
+        card_from_table.position = x, y
+
+        # Place card in hand on table
+        if self.player_turn:
+            self.player_card_list[card.index] = self.card_in_hand
+            self.player_card_list[card.index].position = card.position
+            self.player_card_list[card.index].index = card.index
+        elif self.computer_turn:
+            self.computer_card_list[card.index] = self.card_in_hand
+            self.computer_card_list[card.index].position = card.position
+            self.computer_card_list[card.index].index = card.index
+
+        # Kill current card in hand
+        self.card_in_hand.kill()
+
+        self.card_in_hand = card_from_table
+        self.card_in_hand_list.append(card_from_table)
+
+        card.kill()
+
+    def discard_card_in_hand(self):
+        card = sprites.CardFront(self.card_in_hand.suit, self.card_in_hand.value, cards.CARD_SCALE)
+        card.position = self.calc_card_pos(discard=True)
+        self.discard_pile_list.append(card)
+        self.card_in_hand.kill()
+        self.card_in_hand = None
+
+        self.player_turn = True if not self.player_turn else False
+        self.computer_turn = True if not self.computer_turn else False
+
+    def get_card_from_draw_pile(self, x, y):
+        # Grab the top card from the deck
+        card = self.draw_pile_list[-1]
+        card_front = sprites.CardFront(card.suit, card.value, scale=cards.CARD_SCALE)
+        card_front.position = x, y
+        card_front.display = True
+        # Assign the card drawn to hand
+        self.card_in_hand = card_front
+        self.card_in_hand_list.append(card_front)
+        # Kill the card in the draw pile
+        card.kill()
+
+    def get_card_from_discard_pile(self, x, y):
+        # Grab the top card from the deck
+        card = self.discard_pile_list[-1]
+        card_front = sprites.CardFront(card.suit, card.value, scale=cards.CARD_SCALE)
+        card_front.position = x, y
+        card_front.display = True
+        # Assign the card drawn to hand
+        self.card_in_hand = card_front
+        self.card_in_hand_list.append(card_front)
+        # Kill the card in the draw pile
+        card.kill()
 
     def is_card_playable(self, card):
         """Checks to see if card in hand is playable on card"""
@@ -429,3 +393,64 @@ class Garbage(arcade.View):
         if num_cards_displayed == self.player_cards_remain:
             self.player_cards_remain -= 1
             self.setup()
+
+        num_cards_displayed = 0
+        for card in self.computer_card_list:
+            num_cards_displayed += 1 if card.display else 0
+
+        if num_cards_displayed == self.computer_cards_remain:
+            self.computer_cards_remain -= 1
+            self.setup()
+
+    def setup(self):
+        """Sets up the game. This should be called each time a round starts"""
+        # Reset game states
+        self.player_card_list = arcade.SpriteList()
+        self.computer_card_list = arcade.SpriteList()
+        self.draw_pile_list = arcade.SpriteList()
+        self.discard_pile_list = arcade.SpriteList()
+        self.card_in_hand_list = arcade.SpriteList()
+        self.game_started = True
+        self.card_in_hand = None
+        self.current_round += 1
+
+        # Build a deck
+        starting_deck = cards.build_decks(NUMBER_OF_DECKS)
+
+        # Create player cards
+        for i in range(self.player_cards_remain):
+            card = sprites.CardBack(
+                cards.PLAYER_COLOR,
+                version=cards.CARD_BACK_VERSION,
+                scale=cards.CARD_SCALE
+            )
+            card.value, card.suit = starting_deck.pop(0)
+            card.display = False
+            card.index = i
+            self.player_card_list.append(card)
+
+        # Create computer cards
+        for i in range(self.computer_cards_remain):
+            card = sprites.CardBack(
+                cards.COMPUTER_COLOR,
+                version=cards.CARD_BACK_VERSION,
+                scale=cards.CARD_SCALE
+            )
+            card.value, card.suit = starting_deck.pop(0)
+            card.display = False
+            card.index = i
+            self.computer_card_list.append(card)
+
+        # Create draw pile
+        for x in starting_deck:
+            card = sprites.CardBack(
+                cards.DRAW_PILE_COLOR,
+                version=cards.CARD_BACK_VERSION,
+                scale=cards.CARD_SCALE
+            )
+            card.value, card.suit = x
+            card.display = False
+            self.draw_pile_list.append(card)
+
+        # Update the window's card positions
+        self.update_card_positions()

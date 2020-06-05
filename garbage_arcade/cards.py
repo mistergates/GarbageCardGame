@@ -15,6 +15,7 @@ CARD_BUFFER_Y = 10
 CARD_VALUES = [2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'A']
 CARD_SUITS = ["Clubs", "Hearts", "Spades", "Diamonds"]
 WILD_CARDS = ["J"]
+DEAD_CARDS = ["Q", "K"]
 CARD_MATCHES = {0: 'A', 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10}
 
 # Colors
