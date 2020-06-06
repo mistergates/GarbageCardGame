@@ -1,4 +1,7 @@
+
+import json
 import arcade
+import os
 
 from arcade.gui import *
 
@@ -12,7 +15,6 @@ class MainMenu(arcade.View):
     def __init__(self):
         super().__init__()
         self.view_name = Views.main_menu
-        self.theme = None
 
         # Window height/width
         self.screen_width = self.window.screen_width
@@ -84,6 +86,8 @@ class MainMenu(arcade.View):
                 self.window.game_view.game_paused = False
             if button.default_state == TitleScreenButtons.quit.value:
                 exit()
+            if button.default_state == TitleScreenButtons.rules.value:
+                self.window.show_view(self.window.rules_view)
 
     def get_sprite_pos(self, title=False, play=False, rules=False, quit=False):
         """Get desired sprite positions based on screen size"""
@@ -161,10 +165,16 @@ class Garbage(arcade.View):
 
         # Computer AI
         self.computer_ai = ComputerAi(self)
+        self.computer_ai_wait = False
+        self.target_table_card = None
+        self.card_move_speed = 7
 
     def on_update(self, delta_time):
         # Check to see if we have a winner
         self.check_for_winner()
+
+        if self.computer_ai_wait and self.target_table_card:
+            self.move_computer_card()
 
         if self.computer_turn:
             self.computer_ai.play_turn(self.card_in_hand)
@@ -311,6 +321,8 @@ class Garbage(arcade.View):
             return False
 
         if self.card_in_hand.value in cards.WILD_CARDS:
+            if card.value in cards.WILD_CARDS and card.display is True:
+                return False
             return True
 
         return cards.CARD_MATCHES[card.index] == self.card_in_hand.value
@@ -385,6 +397,26 @@ class Garbage(arcade.View):
             card.position = x, y
             self.discard_pile_list.append(card)
 
+    def move_computer_card(self):
+        if self.card_in_hand.center_x != self.target_table_card.center_x:
+            if self.card_in_hand.center_x > self.target_table_card.center_x:
+                diff = self.card_in_hand.center_x - self.target_table_card.center_x
+                self.card_in_hand.center_x -= self.card_move_speed if self.card_move_speed < diff else diff
+            else:
+                diff = self.target_table_card.center_x - self.card_in_hand.center_x
+                self.card_in_hand.center_x += self.card_move_speed if self.card_move_speed < diff else diff
+            print('diff x', diff)
+
+        if self.card_in_hand.center_y != self.target_table_card.center_y:
+            if self.card_in_hand.center_y > self.target_table_card.center_y:
+                diff = self.card_in_hand.center_y - self.target_table_card.center_y
+                self.card_in_hand.center_y -= self.card_move_speed if self.card_move_speed < diff else diff
+                print('here')
+            else:
+                diff = self.target_table_card.center_y - self.card_in_hand.center_y
+                self.card_in_hand.center_y += self.card_move_speed if self.card_move_speed < diff else diff
+            print('diff y', diff)
+
     def check_for_winner(self):
         num_cards_displayed = 0
         for card in self.player_card_list:
@@ -454,3 +486,56 @@ class Garbage(arcade.View):
 
         # Update the window's card positions
         self.update_card_positions()
+
+class Rules(arcade.View):
+    def __init__(self):
+        super().__init__()
+        self.view_name = Views.rules
+        self.rules = self.load_rules()
+
+        # Window height/width
+        self.screen_width = self.window.screen_width
+        self.screen_height = self.window.screen_height
+
+        self.render_menu_text()
+
+    def on_draw(self):
+        arcade.start_render()
+        arcade.set_background_color(arcade.color.DARK_SLATE_BLUE)
+        self.render_menu_text()
+
+    def render_menu_text(self):
+        x = 10
+        y = self.window.screen_height - 20
+        for _set in self.rules:
+            for header, lines in _set.items():
+                # Draw header
+                arcade.draw_text(
+                    header,
+                    x,
+                    y,
+                    arcade.color.WHITE,
+                    16,
+                    font_name="GARA",
+                    align="left"
+                )
+                y -= 30
+
+            for line in lines:
+                arcade.draw_text(
+                    line,
+                    x,
+                    y,
+                    arcade.color.WHITE,
+                    14,
+                    font_name="GARA",
+                    align="left"
+                )
+                y -= 20
+
+            y -= 30
+
+    def load_rules(self):
+        fn = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'rules.json')
+        with open(fn, 'r') as f:
+            return json.load(f)

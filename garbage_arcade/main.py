@@ -6,25 +6,18 @@ Created by Mitch Gates (github.com/mistergates)
 =====
 TODO
 =====
-MUST HAVE:
-------------
-- Move card sprite creation to function (like title screen) so sprites are re-created on resize
-- Shuffle cards from discard pile back into a draw pile if we run out
-- Setup computer AI
+- Fix bug where if player right-clicks to discard while card is over discard pile it skips computer's turn
+- Add logic to not end turn if you discard a card picked up from discard pile
+- Add logic to discard card if there is on-click collision on discard pile
 - Show winner view when there is a winner, option to continue to next hand
 - Show winner when no remaining cards left for player/computer
-
-NICE TO HAVE:
--------------
-- Music
-- Escape Menu (Exit, Music Toggle)
 '''
 import arcade
 import ctypes
 
 from . import cards
 from .enums import Views
-from .views import MainMenu, Garbage
+from .views import MainMenu, Garbage, Rules
 
 SCREEN_WIDTH = int(ctypes.windll.user32.GetSystemMetrics(0) * .75)
 SCREEN_HEIGHT = int(ctypes.windll.user32.GetSystemMetrics(1) * .75)
@@ -40,6 +33,7 @@ class GameWindow(arcade.Window):
         self.screen_height = height
         self.title_view = MainMenu()
         self.game_view = Garbage()
+        self.rules_view = Rules()
 
     def on_resize(self, width, height):
         """This method is automatically called when the window is resized"""
@@ -70,6 +64,8 @@ class GameWindow(arcade.Window):
             elif self.current_view.view_name == Views.main_menu and self.game_view.game_started:
                 self.show_view(self.game_view)
                 self.game_view.paused = False
+            elif self.current_view.view_name == Views.rules:
+                self.show_view(self.title_view)
 
 def play():
     """Main method"""
