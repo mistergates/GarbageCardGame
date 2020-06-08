@@ -1,30 +1,16 @@
 
-import os
 import arcade
 
-ASSETS_LOC = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'assets', 'images')
+from . import cards
+from .enums import ImageAssets
 
-class Title(arcade.Sprite):
-    """ Title screen image sprite """
 
-    def __init__(self, scale=1):
-        # Image to use for the sprite when face up
-        self.image_file_name = os.path.join(ASSETS_LOC, 'title.png')
-
-        # Call the parent
-        super().__init__(self.image_file_name, scale, calculate_hit_box=False)
-
-class TitleScreenButton(arcade.Sprite):
-    """ Title screen play button """
-
-    def __init__(self, image, default_state=None, hover_state=None, scale=1):
+class GenericImage(arcade.Sprite):
+    """Most images will be loaded from here"""
+    def __init__(self, image, scale=1):
         # Image to use for the sprite when face up
         self.image_scale = scale
-        self.default_state = default_state
-        self.hover_state = hover_state
-        self.image_file_name = os.path.join(ASSETS_LOC, image)
-
-        self.hover = False
+        self.image_file_name = image
 
         # Call the parent
         super().__init__(self.image_file_name, scale, calculate_hit_box=False)
@@ -55,6 +41,8 @@ class CardBack(arcade.Sprite):
 
         # Image to use for the sprite when face down
         self.image_file_name = f":resources:images/cards/cardBack_{color}{version}.png"
+        # if color == 'Red':
+        #     self.image_file_name = ImageAssets.card_back_black.value
 
         # Call the parent
         super().__init__(self.image_file_name, scale, calculate_hit_box=False)

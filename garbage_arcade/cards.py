@@ -1,7 +1,7 @@
 from random import sample
 
 # Constants for sizing
-CARD_SCALE = 0.90
+CARD_SCALE = 1
 
 # How big are the cards?
 CARD_WIDTH = 140 * CARD_SCALE

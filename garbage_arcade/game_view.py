@@ -1,150 +1,25 @@
-
-import json
 import arcade
-import os
-
-from arcade.gui import *
 
 from . import cards, sprites
-from .enums import Views, TitleScreenButtons
+from .enums import Views, Sounds, ImageAssets, Player
 from .computer_ai import ComputerAi
 
 NUMBER_OF_DECKS = 1
 
-class MainMenu(arcade.View):
-    def __init__(self):
-        super().__init__()
-        self.view_name = Views.main_menu
-
-        # Window height/width
-        self.screen_width = self.window.screen_width
-        self.screen_height = self.window.screen_height
-
-        # Main title
-        self.title_list = arcade.SpriteList()
-
-        # Buttons
-        self.buttons_list = arcade.SpriteList()
-
-
-    def on_show(self):
-        """Runs on first render"""
-        self.create_sprites()
-
-    def on_update(self, delta_time):
-        """Check for menu item selections"""
-        pass
-
-    def on_mouse_motion(self, x, y, dx, dy):
-        buttons_list = self.buttons_list
-        self.buttons_list = arcade.SpriteList()
-
-        for button in buttons_list:
-            if button.hover:
-                new_button = sprites.TitleScreenButton(
-                    button.hover_state,
-                    default_state=button.default_state,
-                    hover_state=button.hover_state
-                )
-                new_button.hover = True
-            else:
-                new_button = sprites.TitleScreenButton(
-                    button.default_state,
-                    default_state=button.default_state,
-                    hover_state=button.hover_state
-                )
-                new_button.hover = False
-            new_button.position = button.position
-            self.buttons_list.append(new_button)
-
-        # Reset all buttons back to no hover
-        for button in self.buttons_list:
-            button.hover = False
-
-        # Set the button being hovered to true
-        for button in arcade.get_sprites_at_point((x, y), self.buttons_list):
-            button.hover = True
-
-    def on_draw(self):
-        """Render the screen"""
-        # This command has to happen before we start drawing
-        arcade.start_render()
-
-        arcade.set_background_color(arcade.color.DARK_SLATE_BLUE)
-
-        # Draw title screen sprites
-        self.title_list.draw()
-        self.buttons_list.draw()
-
-    def on_mouse_press(self, x, y, button, key_modifiers):
-        """Check for sprite collisions"""
-        for button in arcade.get_sprites_at_point((x, y), self.buttons_list):
-            if button.default_state == TitleScreenButtons.play.value:
-                self.window.show_view(self.window.game_view)
-                if not self.window.game_view.game_started:
-                    self.window.game_view.setup()
-                self.window.game_view.game_paused = False
-            if button.default_state == TitleScreenButtons.quit.value:
-                exit()
-            if button.default_state == TitleScreenButtons.rules.value:
-                self.window.show_view(self.window.rules_view)
-
-    def get_sprite_pos(self, title=False, play=False, rules=False, quit=False):
-        """Get desired sprite positions based on screen size"""
-        if title:
-            return self.screen_width / 2, self.screen_height / 2
-        if play:
-            return self.screen_width / 2, self.screen_height / 2 - 200
-        if rules:
-            return self.screen_width / 2, self.screen_height / 2 - 275
-        if quit:
-            return self.screen_width / 2, self.screen_height / 2 - 350
-
-    def create_sprites(self):
-        """Create sprites dispalyed on title screen"""
-        self.title_list = arcade.SpriteList()
-        self.buttons_list = arcade.SpriteList()
-
-        # Title screen
-        title = sprites.Title()
-        title.position = self.get_sprite_pos(title=True)
-        self.title_list.append(title)
-
-        # Play Button
-        play_button = sprites.TitleScreenButton(
-            TitleScreenButtons.play.value,
-            default_state=TitleScreenButtons.play.value,
-            hover_state=TitleScreenButtons.play_hover.value)
-        play_button.position = self.get_sprite_pos(play=True)
-        self.buttons_list.append(play_button)
-
-        # Rules button
-        rules_button = sprites.TitleScreenButton(
-            TitleScreenButtons.rules.value,
-            default_state=TitleScreenButtons.rules.value,
-            hover_state=TitleScreenButtons.rules_hover.value)
-        rules_button.position = self.get_sprite_pos(rules=True)
-        self.buttons_list.append(rules_button)
-
-        # Quit button
-        quit_button = sprites.TitleScreenButton(
-            TitleScreenButtons.quit.value,
-            default_state=TitleScreenButtons.quit.value,
-            hover_state=TitleScreenButtons.quit_hover.value)
-        quit_button.position = self.get_sprite_pos(quit=True)
-        self.buttons_list.append(quit_button)
-
-    
-class Garbage(arcade.View):
+class GameView(arcade.View):
     """Main Garbage card game class"""
 
     def __init__(self):
         super().__init__()
         self.view_name = Views.garbage
+        self.font = 'GARA'
 
-        # Window height/width
-        self.screen_width = self.window.screen_width
-        self.screen_height = self.window.screen_height
+        # Sounds
+        self.draw_card_sound = arcade.Sound(Sounds.draw_card.value)
+        self.play_card_sound = arcade.Sound(Sounds.play_card.value)
+        self.shuffle_sound = arcade.Sound(Sounds.shuffle.value)
+        self.error_sound = arcade.Sound(Sounds.error.value)
+        self.round_over = arcade.Sound(Sounds.round_over.value)
 
         # Card lists (cards on playing board)
         self.player_card_list = None
@@ -162,40 +37,62 @@ class Garbage(arcade.View):
         self.player_turn = True
         self.computer_turn = False
         self.card_in_hand = None
+        self.move_card_wait = False
+        self.previous_discard_card = None
+        self.round_winner = None
+        self.game_winner = None
 
         # Computer AI
+        self.computer_ai_hand = sprites.GenericImage(ImageAssets.computer_hand.value)
         self.computer_ai = ComputerAi(self)
-        self.computer_ai_wait = False
         self.target_table_card = None
-        self.card_move_speed = 7
+        self.card_move_speed = 5
 
     def on_update(self, delta_time):
         # Check to see if we have a winner
-        self.check_for_winner()
+        if self.round_winner:
+            self.round_over.play(self.window.volume)
+            arcade.pause(5)
+            self.setup()
+        if self.game_winner:
+            # TODO - draw game over view
+            pass
 
-        if self.computer_ai_wait and self.target_table_card:
-            self.move_computer_card()
+        if self.check_for_winner():
+            return
+
+        if self.move_card_wait and self.target_table_card:
+            self.move_card()
+            self.computer_ai_hand.position = self.card_in_hand.position if self.card_in_hand else (0, 0)
+            return
 
         if self.computer_turn:
-            self.computer_ai.play_turn(self.card_in_hand)
+            self.computer_ai.play_turn()
+            self.computer_ai_hand.position = self.card_in_hand.position if self.card_in_hand else (0, 0)
 
-    def on_mouse_press(self, x, y, button, key_modifiers):
+    def on_mouse_press(self, x, y, button, modifiers):
         """Called when the user presses a mouse button"""
         # Do nothing if not player's turn
         if not self.player_turn:
+            self.error_sound.play(self.window.volume)
             return
 
         # Discard on right-click
         if button == arcade.MOUSE_BUTTON_RIGHT and self.card_in_hand:
             self.discard_card_in_hand()
+            return
 
         # Check draw pile
         if arcade.get_sprites_at_point((x, y), self.draw_pile_list) and not self.card_in_hand:
             self.get_card_from_draw_pile(x, y)
 
         # Check discard pile
-        if arcade.get_sprites_at_point((x, y), self.discard_pile_list) and not self.card_in_hand:
-            self.get_card_from_discard_pile(x, y)
+        if arcade.get_sprites_at_point((x, y), self.discard_pile_list):
+            if self.card_in_hand:
+                self.discard_card_in_hand()
+                return
+            else:
+                self.get_card_from_discard_pile(x, y)
 
         # Check collision with player's cards
         player_table_card = arcade.get_sprites_at_point((x, y), self.player_card_list)
@@ -205,6 +102,8 @@ class Garbage(arcade.View):
             # Check to see if card is playable
             if self.is_card_playable(card):
                 self.play_card_in_hand(card, x, y)
+            else:
+                self.error_sound.play(self.window.volume)
 
     def on_mouse_motion(self, x, y, dx, dy):
         """Mouse Movement"""
@@ -223,34 +122,31 @@ class Garbage(arcade.View):
         # Draw a grid to show absolute center
         # arcade.draw_line(
         #     start_x=0,
-        #     start_y=self.screen_height / 2,
-        #     end_x=self.screen_width,
-        #     end_y=self.screen_height / 2,
+        #     start_y=self.window.screen_height / 2,
+        #     end_x=self.window.screen_width,
+        #     end_y=self.window.screen_height / 2,
         #     color=arcade.color.BLACK,
         #     line_width=2
         # )
         # arcade.draw_line(
-        #     start_x=self.screen_width / 2,
+        #     start_x=self.window.screen_width / 2,
         #     start_y=0,
-        #     end_x=self.screen_width / 2,
-        #     end_y=self.screen_height,
+        #     end_x=self.window.screen_width / 2,
+        #     end_y=self.window.screen_height,
         #     color=arcade.color.BLACK,
         #     line_width=2
         # )
 
-        # Display turn
-        turn_text = "Player's Turn" if self.player_turn else "Computer's Turn"
-        arcade.draw_text(
-            turn_text,
-            self.screen_width / 2,
-            self.screen_height / 2,
-            arcade.color.WHITE,
-            24,
-            font_name="GARA",
-            align="center",
-            anchor_x="center",
-            anchor_y="center"
-        )
+        # Display center text
+        if self.round_winner:
+            text = f'{self.round_winner.value} wins the round!'
+            size = 36
+            color = arcade.color.WHITE
+        else:
+            text = "Player's Turn" if self.player_turn else "Computer's Turn"
+            size = 36
+            color = arcade.color.WHITE
+        self.update_center_text(text, size, color)
 
         # Draw the cards
         self.player_card_list.draw()
@@ -259,7 +155,26 @@ class Garbage(arcade.View):
         self.discard_pile_list.draw()
         self.card_in_hand_list.draw()
 
+        if self.computer_turn:
+            self.computer_ai_hand.draw()
+
+    def update_center_text(self, text, size, color):
+        arcade.draw_text(
+            text,
+            self.window.screen_width / 2,
+            self.window.screen_height / 2,
+            color,
+            size,
+            font_name=self.font,
+            align="center",
+            anchor_x="center",
+            anchor_y="center"
+        )
+
     def play_card_in_hand(self, card, x, y):
+        # Play sound
+        self.play_card_sound.play(volume=self.window.volume)
+
         card_from_table = sprites.CardFront(card.suit, card.value, scale=cards.CARD_SCALE)
         card_from_table.position = x, y
 
@@ -282,16 +197,25 @@ class Garbage(arcade.View):
         card.kill()
 
     def discard_card_in_hand(self):
+        # Play sound
+        self.play_card_sound.play(volume=self.window.volume)
         card = sprites.CardFront(self.card_in_hand.suit, self.card_in_hand.value, cards.CARD_SCALE)
         card.position = self.calc_card_pos(discard=True)
         self.discard_pile_list.append(card)
         self.card_in_hand.kill()
         self.card_in_hand = None
 
-        self.player_turn = True if not self.player_turn else False
-        self.computer_turn = True if not self.computer_turn else False
+        # Don't change turn if we are discarding a card we took from discard pile
+        if (self.previous_discard_card
+            and card.value == self.previous_discard_card.value
+            and card.suit == self.previous_discard_card.suit):
+            return
+
+        self.change_turn()
 
     def get_card_from_draw_pile(self, x, y):
+        # Play sound
+        self.draw_card_sound.play(volume=self.window.volume)
         # Grab the top card from the deck
         card = self.draw_pile_list[-1]
         card_front = sprites.CardFront(card.suit, card.value, scale=cards.CARD_SCALE)
@@ -304,6 +228,8 @@ class Garbage(arcade.View):
         card.kill()
 
     def get_card_from_discard_pile(self, x, y):
+        # Play sound
+        self.draw_card_sound.play(volume=self.window.volume)
         # Grab the top card from the deck
         card = self.discard_pile_list[-1]
         card_front = sprites.CardFront(card.suit, card.value, scale=cards.CARD_SCALE)
@@ -312,6 +238,7 @@ class Garbage(arcade.View):
         # Assign the card drawn to hand
         self.card_in_hand = card_front
         self.card_in_hand_list.append(card_front)
+        self.previous_discard_card = card
         # Kill the card in the draw pile
         card.kill()
 
@@ -333,17 +260,17 @@ class Garbage(arcade.View):
         Relies on screen size and card size for calculations.
         """
         if player:
-            x = (self.screen_width / 2) - (cards.CARD_WIDTH * 2) - (cards.CARD_BUFFER_X * 2)
+            x = (self.window.screen_width / 2) - (cards.CARD_WIDTH * 2) - (cards.CARD_BUFFER_X * 2)
             y = cards.CARD_HEIGHT * 1.75
         if computer:
-            x = (self.screen_width / 2)  + (cards.CARD_WIDTH * 2) + (cards.CARD_BUFFER_X * 2)
-            y = self.screen_height - (cards.CARD_HEIGHT * 1.75)
+            x = (self.window.screen_width / 2)  + (cards.CARD_WIDTH * 2) + (cards.CARD_BUFFER_X * 2)
+            y = self.window.screen_height - (cards.CARD_HEIGHT * 1.75)
         if draw:
-            x = cards.CARD_WIDTH * .75
-            y = self.screen_height / 2
+            x = self.calc_card_pos(player=True)[0] - cards.CARD_WIDTH * 1.5
+            y = self.window.screen_height / 2
         if discard:
-            x = cards.CARD_WIDTH * 2
-            y = self.screen_height / 2
+            x = self.calc_card_pos(computer=True)[0] + cards.CARD_WIDTH * 1.5
+            y = self.window.screen_height / 2
 
         return x, y
 
@@ -397,25 +324,33 @@ class Garbage(arcade.View):
             card.position = x, y
             self.discard_pile_list.append(card)
 
-    def move_computer_card(self):
+    def move_card(self):
+        speed = self.card_move_speed
+        if self.target_table_card.position == self.calc_card_pos(discard=True):
+            speed *= 2
+
         if self.card_in_hand.center_x != self.target_table_card.center_x:
             if self.card_in_hand.center_x > self.target_table_card.center_x:
                 diff = self.card_in_hand.center_x - self.target_table_card.center_x
-                self.card_in_hand.center_x -= self.card_move_speed if self.card_move_speed < diff else diff
+                self.card_in_hand.center_x -= speed if speed < diff else diff
             else:
                 diff = self.target_table_card.center_x - self.card_in_hand.center_x
-                self.card_in_hand.center_x += self.card_move_speed if self.card_move_speed < diff else diff
-            print('diff x', diff)
+                self.card_in_hand.center_x += speed if speed < diff else diff
 
         if self.card_in_hand.center_y != self.target_table_card.center_y:
             if self.card_in_hand.center_y > self.target_table_card.center_y:
                 diff = self.card_in_hand.center_y - self.target_table_card.center_y
-                self.card_in_hand.center_y -= self.card_move_speed if self.card_move_speed < diff else diff
-                print('here')
+                self.card_in_hand.center_y -= speed if speed < diff else diff
             else:
                 diff = self.target_table_card.center_y - self.card_in_hand.center_y
-                self.card_in_hand.center_y += self.card_move_speed if self.card_move_speed < diff else diff
-            print('diff y', diff)
+                self.card_in_hand.center_y += speed if speed < diff else diff
+
+        if self.card_in_hand.position == self.target_table_card.position:
+            self.move_card_wait = False
+
+    def change_turn(self):
+        self.player_turn = True if not self.player_turn else False
+        self.computer_turn = True if not self.computer_turn else False
 
     def check_for_winner(self):
         num_cards_displayed = 0
@@ -424,7 +359,10 @@ class Garbage(arcade.View):
 
         if num_cards_displayed == self.player_cards_remain:
             self.player_cards_remain -= 1
-            self.setup()
+            if self.player_cards_remain == 0:
+                self.game_winner = Player.player
+            else:
+                self.round_winner = Player.player
 
         num_cards_displayed = 0
         for card in self.computer_card_list:
@@ -432,10 +370,21 @@ class Garbage(arcade.View):
 
         if num_cards_displayed == self.computer_cards_remain:
             self.computer_cards_remain -= 1
-            self.setup()
+            if self.computer_cards_remain == 0:
+                self.game_winner = Player.computer
+            else:
+                self.round_winner = Player.computer
+
+        if self.game_winner or self.round_winner:
+            self.card_in_hand.kill()
+            return True
 
     def setup(self):
         """Sets up the game. This should be called each time a round starts"""
+        # Play shound
+        arcade.pause(.5)
+        self.shuffle_sound.play(self.window.volume)
+
         # Reset game states
         self.player_card_list = arcade.SpriteList()
         self.computer_card_list = arcade.SpriteList()
@@ -444,7 +393,8 @@ class Garbage(arcade.View):
         self.card_in_hand_list = arcade.SpriteList()
         self.game_started = True
         self.card_in_hand = None
-        self.current_round += 1
+        self.round_winner = None
+        self.game_winner = None
 
         # Build a deck
         starting_deck = cards.build_decks(NUMBER_OF_DECKS)
@@ -484,58 +434,10 @@ class Garbage(arcade.View):
             card.display = False
             self.draw_pile_list.append(card)
 
+        # Add discard placeholder:
+        self.discard_pile_list.append(
+            sprites.GenericImage(ImageAssets.discard_placeholder.value)
+        )
+
         # Update the window's card positions
         self.update_card_positions()
-
-class Rules(arcade.View):
-    def __init__(self):
-        super().__init__()
-        self.view_name = Views.rules
-        self.rules = self.load_rules()
-
-        # Window height/width
-        self.screen_width = self.window.screen_width
-        self.screen_height = self.window.screen_height
-
-        self.render_menu_text()
-
-    def on_draw(self):
-        arcade.start_render()
-        arcade.set_background_color(arcade.color.DARK_SLATE_BLUE)
-        self.render_menu_text()
-
-    def render_menu_text(self):
-        x = 10
-        y = self.window.screen_height - 20
-        for _set in self.rules:
-            for header, lines in _set.items():
-                # Draw header
-                arcade.draw_text(
-                    header,
-                    x,
-                    y,
-                    arcade.color.WHITE,
-                    16,
-                    font_name="GARA",
-                    align="left"
-                )
-                y -= 30
-
-            for line in lines:
-                arcade.draw_text(
-                    line,
-                    x,
-                    y,
-                    arcade.color.WHITE,
-                    14,
-                    font_name="GARA",
-                    align="left"
-                )
-                y -= 20
-
-            y -= 30
-
-    def load_rules(self):
-        fn = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'rules.json')
-        with open(fn, 'r') as f:
-            return json.load(f)

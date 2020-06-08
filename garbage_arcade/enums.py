@@ -1,14 +1,43 @@
+import os
 from enum import Enum
+
+IMAGE_ASSETS = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'assets', 'images')
+SOUND_ASSETS = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'assets', 'sounds')
+
+class Player(Enum):
+    player = 'Player'
+    computer = 'Computer'
 
 class Views(Enum):
     main_menu = 'MainMenu'
     garbage = 'Garbage'
     rules = 'Rules'
 
-class TitleScreenButtons(Enum):
-    play = 'play.png'
-    play_hover = 'play_hover.png'
-    rules = 'rules.png'
-    rules_hover = 'rules_hover.png'
-    quit = 'quit.png'
-    quit_hover = 'quit_hover.png'
+class ImageAssets(Enum):
+    # Main title image
+    title = os.path.join(IMAGE_ASSETS, 'title.png')
+
+    # Rules
+    rules_text = os.path.join(IMAGE_ASSETS, 'rules_text.png')
+
+    # Main menu buttons
+    play_btn = os.path.join(IMAGE_ASSETS, 'play.png')
+    play_btn_hover = os.path.join(IMAGE_ASSETS, 'play_hover.png')
+    rules_btn = os.path.join(IMAGE_ASSETS, 'rules.png')
+    rules_btn_hover = os.path.join(IMAGE_ASSETS, 'rules_hover.png')
+    quit_btn = os.path.join(IMAGE_ASSETS, 'quit.png')
+    quit_btn_hover = os.path.join(IMAGE_ASSETS, 'quit_hover.png')
+
+    # Computer
+    computer_hand = os.path.join(IMAGE_ASSETS, 'hand.png')
+
+    # Cards
+    discard_placeholder = os.path.join(IMAGE_ASSETS, 'discard.png')
+
+class Sounds(Enum):
+    draw_card = os.path.join(SOUND_ASSETS, 'draw.mp3')
+    play_card = os.path.join(SOUND_ASSETS, 'playcard.mp3')
+    shuffle = os.path.join(SOUND_ASSETS, 'shuffle.mp3')
+    error = os.path.join(SOUND_ASSETS, 'error.mp3')
+    round_over = os.path.join(SOUND_ASSETS, 'cuckoo.mp3')
+    menu_select = os.path.join(SOUND_ASSETS, 'menu_select.wav')
