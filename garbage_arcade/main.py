@@ -2,24 +2,21 @@
 Garbage Card Game (AKA Trash)
 
 Created by Mitch Gates (github.com/mistergates)
-
-=====
-TODO
-=====
-- Move computer's hand to a determined place before playing it?
-- Show winner when no remaining cards left for player/computer
 '''
-import arcade
 import ctypes
+
+import arcade
 
 from .enums import Views
 from .game_view import GameView
 from .main_menu_view import MainMenuView
 from .rules_view import RulesView
+from .game_over_view import GameOverView
 
 SCREEN_WIDTH = int(ctypes.windll.user32.GetSystemMetrics(0) * .75)
 SCREEN_HEIGHT = int(ctypes.windll.user32.GetSystemMetrics(1) * .75)
 SCREEN_TITLE = 'Garbage Card Game'
+FPS = 60
 
 class GameWindow(arcade.Window):
     """Main Garbage card game window that holds views"""
@@ -32,9 +29,13 @@ class GameWindow(arcade.Window):
         self.main_menu_view = MainMenuView()
         self.game_view = GameView()
         self.rules_view = RulesView()
+        self.game_over_view = GameOverView()
+
+        self.set_update_rate(1 / FPS)
 
         # Parent vars shared across views
-        self.volume = .5
+        self.volume = 1
+        self.font = 'GARA'
 
     def on_resize(self, width, height):
         """This method is automatically called when the window is resized"""
@@ -69,11 +70,11 @@ class GameWindow(arcade.Window):
             elif self.current_view.view_name == Views.rules:
                 self.show_view(self.main_menu_view)
 
-        if key == arcade.key.MINUS:
-            self.volume -= .1 if self.volume >= .1 else 0
-            print(self.volume)
-        if key == arcade.key.PLUS:
-            self.volume += .1 if self.volume <= .9 else 1
+        # if key == arcade.key.MINUS:
+        #     self.volume -= .1 if self.volume >= .1 else 0
+        #     print(self.volume)
+        # if key == arcade.key.PLUS:
+        #     self.volume += .1 if self.volume <= .9 else 1
 
 def play():
     """Main method"""

@@ -1,3 +1,4 @@
+'''Card Library'''
 from random import sample
 
 # Constants for sizing

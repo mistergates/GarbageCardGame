@@ -1,9 +1,9 @@
 import arcade
 
 from . import sprites
-from .enums import Views, ImageAssets, Sounds
+from .enums import Views, ImageAssets, Sounds, Player
 
-class MainMenuView(arcade.View):
+class GameOverView(arcade.View):
     def __init__(self):
         super().__init__()
         self.view_name = Views.main_menu
@@ -13,6 +13,9 @@ class MainMenuView(arcade.View):
 
         # Main title
         self.title_list = arcade.SpriteList()
+
+        # Winner
+        self.winner_text = None
 
         # Buttons
         self.buttons_list = arcade.SpriteList()
@@ -44,29 +47,24 @@ class MainMenuView(arcade.View):
                 self.menu_select.play(volume=self.window.volume)
                 self.window.show_view(self.window.game_view)
                 if not self.window.game_view.game_started:
-                    self.window.game_view.setup(new_game=True)
+                    self.window.game_view.setup()
             if button.image_file_name == ImageAssets.quit_btn_hover.value:
                 self.menu_select.play(volume=self.window.volume)
                 exit()
             if button.image_file_name == ImageAssets.rules_btn_hover.value:
                 self.menu_select.play(volume=self.window.volume)
                 self.window.show_view(self.window.rules_view)
-            if button.image_file_name == ImageAssets.restart_btn_hover.value:
-                self.window.game_view.setup(new_game=True)
-                self.window.show_view(self.window.game_view)
 
-    def get_sprite_pos(self, fn):
+    def get_sprite_pos(self, title=False, play=False, winner=False, quit=False):
         """Get desired sprite positions based on screen size"""
-        if fn == ImageAssets.title.value:
+        if title:
             return self.window.screen_width / 2, self.window.screen_height / 2
-        if fn == ImageAssets.play_btn.value:
+        if winner:
             return self.window.screen_width / 2, self.window.screen_height / 2 - 200
-        if fn == ImageAssets.rules_btn.value:
+        if play:
             return self.window.screen_width / 2, self.window.screen_height / 2 - 275
-        if fn == ImageAssets.restart_btn.value:
+        if quit:
             return self.window.screen_width / 2, self.window.screen_height / 2 - 350
-        if fn == ImageAssets.quit_btn.value:
-            return self.window.screen_width / 2, self.window.screen_height / 2 - 425
 
     def create_sprites(self):
         """Create sprites dispalyed on title screen"""
@@ -76,11 +74,26 @@ class MainMenuView(arcade.View):
 
         # Title screen
         title = sprites.GenericImage(ImageAssets.title.value)
-        title.position = self.get_sprite_pos(ImageAssets.title.value)
+        title.position = self.get_sprite_pos(title=True)
         self.title_list.append(title)
 
+        # Display Winner
+        text = f'{self.window.game_view.game_winner.value} Wins!'
+        x, y = self.get_sprite_pos(winner=True)
+        arcade.draw_text(
+            text,
+            x,
+            y,
+            arcade.color.WHITE,
+            36,
+            font_name=self.window.font,
+            align="center",
+            anchor_x="center",
+            anchor_y="center"
+        )
+
         # Play Buttons
-        play_btn_pos = self.get_sprite_pos(ImageAssets.play_btn.value)
+        play_btn_pos = self.get_sprite_pos(play=True)
         play_btn = sprites.GenericImage(ImageAssets.play_btn.value)
         play_btn.position = play_btn_pos
         self.buttons_list.append(play_btn)
@@ -88,26 +101,8 @@ class MainMenuView(arcade.View):
         play_btn_hover.position = play_btn_pos
         self.buttons_hover_list.append(play_btn_hover)
 
-        # Rules button
-        rules_btn_pos = self.get_sprite_pos(ImageAssets.rules_btn.value)
-        rules_btn = sprites.GenericImage(ImageAssets.rules_btn.value)
-        rules_btn.position = rules_btn_pos
-        self.buttons_list.append(rules_btn)
-        rules_btn_hover = sprites.GenericImage(ImageAssets.rules_btn_hover.value)
-        rules_btn_hover.position = rules_btn_pos
-        self.buttons_hover_list.append(rules_btn_hover)
-
-        # Restart button
-        restart_bn_pos = self.get_sprite_pos(ImageAssets.restart_btn.value)
-        restart_btn = sprites.GenericImage(ImageAssets.restart_btn.value)
-        restart_btn.position = restart_bn_pos
-        self.buttons_list.append(restart_btn)
-        restart_btn_hover = sprites.GenericImage(ImageAssets.restart_btn_hover.value)
-        restart_btn_hover.position = restart_bn_pos
-        self.buttons_hover_list.append(restart_btn_hover)
-
         # Quit button
-        quit_btn_pos = self.get_sprite_pos(ImageAssets.quit_btn.value)
+        quit_btn_pos = self.get_sprite_pos(quit=True)
         quit_btn = sprites.GenericImage(ImageAssets.quit_btn.value)
         quit_btn.position = quit_btn_pos
         self.buttons_list.append(quit_btn)

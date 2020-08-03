@@ -27,12 +27,22 @@ class ImageAssets(Enum):
     rules_btn_hover = os.path.join(IMAGE_ASSETS, 'rules_hover.png')
     quit_btn = os.path.join(IMAGE_ASSETS, 'quit.png')
     quit_btn_hover = os.path.join(IMAGE_ASSETS, 'quit_hover.png')
+    restart_btn = os.path.join(IMAGE_ASSETS, 'restart.png')
+    restart_btn_hover = os.path.join(IMAGE_ASSETS, 'restart_hover.png')
 
     # Computer
     computer_hand = os.path.join(IMAGE_ASSETS, 'hand.png')
 
     # Cards
     discard_placeholder = os.path.join(IMAGE_ASSETS, 'discard.png')
+    pile_placeholder = os.path.join(IMAGE_ASSETS, 'pile_placeholder.png')
+
+    # Game Controls
+    audio_down = os.path.join(IMAGE_ASSETS, 'audio_down.png')
+    audio_up = os.path.join(IMAGE_ASSETS, 'audio_up.png')
+    audio_1 = os.path.join(IMAGE_ASSETS, 'audio_1.png')
+    audio_2 = os.path.join(IMAGE_ASSETS, 'audio_2.png')
+    audio_3 = os.path.join(IMAGE_ASSETS, 'audio_3.png')
 
 class Sounds(Enum):
     draw_card = os.path.join(SOUND_ASSETS, 'draw.mp3')

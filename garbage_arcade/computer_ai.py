@@ -1,12 +1,6 @@
 import arcade
 
-from . import cards
-
-class FakeCard:
-    def __init__(self, x, y):
-        self.center_x = x
-        self.center_y = y
-        self.position = (x, y)
+from . import cards, sprites
 
 class ComputerAi:
 
@@ -30,7 +24,7 @@ class ComputerAi:
         if table_card:
             # print(f'Playing {self.game.card_in_hand.value} to {table_card.position} (current pos {self.game.card_in_hand.position})')
             # If we haven't moved the card yet, wait for that
-            if self.game.card_in_hand.position != table_card.position:
+            if list(self.game.card_in_hand.position) != list(table_card.position):
                 if not self.game.target_table_card:
                     self.game.target_table_card = table_card
                 self.game.move_card_wait = True
@@ -41,10 +35,12 @@ class ComputerAi:
             self.play_card(table_card)
         else:
             # Move the card to discard pile
-            fake_card = FakeCard(*self.game.calc_card_pos(discard=True))
+            if not self.game.target_table_card:
+                self.game.target_table_card = sprites.CardBack('Red')
+                self.game.target_table_card.position = list(self.game.calc_card_pos(discard=True))
+
             # print(f'Discarding {self.game.card_in_hand.value} to {fake_card.position}')
-            if self.game.card_in_hand.position != fake_card.position:
-                self.game.target_table_card = fake_card
+            if list(self.game.card_in_hand.position) != list(self.game.target_table_card.position):
                 self.game.move_card_wait = True
                 return
             # Card is finished moving, play it now
