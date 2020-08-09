@@ -125,34 +125,48 @@ class GameView(arcade.View):
                 continue
             if sprite.image_file_name == ImageAssets.audio_down.value:
                 self.window.volume -= .1 if self.window.volume >= .1 else 0
+                self.window.music_volume -= .03 if self.window.music_volume >= .03 else 0
                 if self.audio_control_list[1].image_file_name == ImageAssets.audio_up.value:
                     continue
                 current_audio = self.audio_control_list[1].image_file_name
                 self.audio_control_list[1].kill()
                 if current_audio == ImageAssets.audio_3.value:
                     self.window.volume = .60
+                    self.window.music_volume = .03
+                    self.window.background_music.set_volume(self.window.music_volume)
                     new_audio = sprites.GenericImage(ImageAssets.audio_2.value)
                 elif current_audio == ImageAssets.audio_2.value:
                     self.window.volume = .30
+                    self.window.music_volume = .01
+                    self.window.background_music.set_volume(self.window.music_volume)
                     new_audio = sprites.GenericImage(ImageAssets.audio_1.value)
                 else:
                     self.window.volume = 0
+                    self.window.music_volume = 0
+                    self.window.background_music.set_volume(self.window.music_volume)
                     continue
             if sprite.image_file_name == ImageAssets.audio_up.value:
                 self.window.volume -= .1 if self.window.volume >= .1 else 0
+                self.window.music_volume -= .01 if self.window.music_volume >= .01 else 0
                 current_audio = self.audio_control_list[1].image_file_name
                 if not self.audio_control_list[1].image_file_name == ImageAssets.audio_up.value:
                     self.audio_control_list[1].kill()
                 if current_audio == ImageAssets.audio_1.value:
                     self.window.volme = .60
+                    self.window.music_volume = .03
+                    self.window.background_music.set_volume(self.window.music_volume)
                     new_audio = sprites.GenericImage(ImageAssets.audio_2.value)
                 elif current_audio == ImageAssets.audio_2.value:
                     self.window.volume = 1
+                    self.window.music_volume = .06
+                    self.window.background_music.set_volume(self.window.music_volume)
                     new_audio = sprites.GenericImage(ImageAssets.audio_3.value)
                 elif current_audio == ImageAssets.audio_3.value:
                     new_audio = sprites.GenericImage(ImageAssets.audio_3.value)
                 else:
                     self.window.volume = .30
+                    self.window.music_volume = .01
+                    self.window.background_music.set_volume(self.window.music_volume)
                     new_audio = sprites.GenericImage(ImageAssets.audio_1.value)
 
             new_audio.position = 100, 50
@@ -482,6 +496,7 @@ class GameView(arcade.View):
             self.player_cards_remain -= 1
             if self.player_cards_remain == 0:
                 self.game_winner = Player.player
+                # print(f'{self.game_winner.value} wins!')
             else:
                 self.round_winner = Player.player
 
@@ -493,6 +508,7 @@ class GameView(arcade.View):
             self.computer_cards_remain -= 1
             if self.computer_cards_remain == 0:
                 self.game_winner = Player.computer
+                # print(f'{self.game_winner.value} wins!')
             else:
                 self.round_winner = Player.computer
 
@@ -506,8 +522,8 @@ class GameView(arcade.View):
         if new_game:
             self.game_started = False
             self.paused = False
-            self.player_cards_remain = 10
-            self.computer_cards_remain = 10
+            self.player_cards_remain = 1
+            self.computer_cards_remain = 1
             self.current_round = 0
             self.play_number = 0
             self.player_turn = True

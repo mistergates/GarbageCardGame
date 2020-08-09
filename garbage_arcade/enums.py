@@ -29,6 +29,8 @@ class ImageAssets(Enum):
     quit_btn_hover = os.path.join(IMAGE_ASSETS, 'quit_hover.png')
     restart_btn = os.path.join(IMAGE_ASSETS, 'restart.png')
     restart_btn_hover = os.path.join(IMAGE_ASSETS, 'restart_hover.png')
+    new_game_btn = os.path.join(IMAGE_ASSETS, 'new_game.png')
+    new_game_btn_hover = os.path.join(IMAGE_ASSETS, 'new_game_hover.png')
 
     # Computer
     computer_hand = os.path.join(IMAGE_ASSETS, 'hand.png')
@@ -45,6 +47,7 @@ class ImageAssets(Enum):
     audio_3 = os.path.join(IMAGE_ASSETS, 'audio_3.png')
 
 class Sounds(Enum):
+    music = os.path.join(SOUND_ASSETS, 'music.mp3')
     draw_card = os.path.join(SOUND_ASSETS, 'draw.mp3')
     play_card = os.path.join(SOUND_ASSETS, 'playcard.mp3')
     shuffle = os.path.join(SOUND_ASSETS, 'shuffle.mp3')

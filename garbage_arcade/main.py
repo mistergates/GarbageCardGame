@@ -7,7 +7,7 @@ import ctypes
 
 import arcade
 
-from .enums import Views
+from .enums import Views, Sounds
 from .game_view import GameView
 from .main_menu_view import MainMenuView
 from .rules_view import RulesView
@@ -36,6 +36,10 @@ class GameWindow(arcade.Window):
         # Parent vars shared across views
         self.volume = 1
         self.font = 'GARA'
+
+        self.music_volume = .06
+        self.background_music = arcade.Sound(Sounds.music.value, streaming=True)
+        self.background_music.play(volume=self.music_volume)
 
     def on_resize(self, width, height):
         """This method is automatically called when the window is resized"""
