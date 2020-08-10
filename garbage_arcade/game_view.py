@@ -329,7 +329,6 @@ class GameView(arcade.View):
 
         # Don't change turn if we are discarding a card we took from discard pile
         if self.previous_discard_card and card.value == self.previous_discard_card.value and card.suit == self.previous_discard_card.suit:
-            print('DISCARD ERROR HERE?')
             return
 
         self.discard_pile_list.update()
@@ -531,8 +530,8 @@ class GameView(arcade.View):
         if new_game:
             self.game_started = False
             self.paused = False
-            self.player_cards_remain = 1
-            self.computer_cards_remain = 1
+            self.player_cards_remain = 10
+            self.computer_cards_remain = 10
             self.current_round = 0
             self.play_number = 0
             self.player_turn = True

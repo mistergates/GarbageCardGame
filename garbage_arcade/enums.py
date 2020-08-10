@@ -1,3 +1,11 @@
+'''
+Enums for players, views, images and sounds
+
+
+Sound effects obtained from https://www.zapsplat.com
+Sound effects obtained from https://www.kenney.nl/assets
+Images obtained from https://www.kenney.nl/assets
+'''
 import os
 from enum import Enum
 

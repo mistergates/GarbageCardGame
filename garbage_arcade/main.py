@@ -74,12 +74,6 @@ class GameWindow(arcade.Window):
             elif self.current_view.view_name == Views.rules:
                 self.show_view(self.main_menu_view)
 
-        # if key == arcade.key.MINUS:
-        #     self.volume -= .1 if self.volume >= .1 else 0
-        #     print(self.volume)
-        # if key == arcade.key.PLUS:
-        #     self.volume += .1 if self.volume <= .9 else 1
-
 def play():
     """Main method"""
     window = GameWindow(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
