@@ -54,3 +54,4 @@ class Sounds(Enum):
     error = os.path.join(SOUND_ASSETS, 'error.mp3')
     round_over = os.path.join(SOUND_ASSETS, 'cuckoo.mp3')
     menu_select = os.path.join(SOUND_ASSETS, 'menu_select.wav')
+    applause = os.path.join(SOUND_ASSETS, 'applause.mp3')

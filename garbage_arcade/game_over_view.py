@@ -10,6 +10,7 @@ class GameOverView(arcade.View):
 
         # Sounds
         self.menu_select = arcade.Sound(Sounds.menu_select.value)
+        self.applause = arcade.Sound(Sounds.applause.value, streaming=True)
 
         # Main title
         self.title_list = arcade.SpriteList()
@@ -21,6 +22,9 @@ class GameOverView(arcade.View):
     def on_show(self):
         """Runs on first render"""
         self.create_sprites()
+
+        # Play Applause
+        self.applause.play(volume=self.window.volume)
 
     def on_mouse_motion(self, x, y, dx, dy):
         self.create_sprites()
@@ -34,7 +38,6 @@ class GameOverView(arcade.View):
 
         # Display Winner
         text = f'{self.window.game_view.game_winner.value} Wins!'
-        print(text)
         x, y = self.get_sprite_pos(winner=True)
         arcade.draw_text(
             text,
@@ -59,6 +62,7 @@ class GameOverView(arcade.View):
         for button in arcade.get_sprites_at_point((x, y), self.buttons_hover_list):
             if button.image_file_name == ImageAssets.new_game_btn_hover.value:
                 self.menu_select.play(volume=self.window.volume)
+                self.applause.stop()
                 self.window.game_view.setup(new_game=True)
                 self.window.show_view(self.window.game_view)
             if button.image_file_name == ImageAssets.quit_btn_hover.value:

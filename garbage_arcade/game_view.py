@@ -56,6 +56,12 @@ class GameView(arcade.View):
         if not self.game_started:
             return
 
+        # Restart background music if the stream ends
+        if self.window.background_music.get_stream_position() == 0.0:
+            self.window.background_music.stop()
+            self.window.background_music.play(volume=self.window.music_volume)
+
+        # End round/game if there is a winner
         if self.round_winner:
             self.round_over.play(self.window.volume)
             arcade.pause(5)
@@ -63,9 +69,11 @@ class GameView(arcade.View):
         if self.game_winner:
             self.window.show_view(self.window.game_over_view)
 
+        # check for round/game winner
         if self.check_for_winner():
             return
 
+        # Continue to move computer's card
         if self.move_card_wait and self.target_table_card:
             try:
                 self.move_card()
@@ -75,6 +83,7 @@ class GameView(arcade.View):
             self.computer_ai_hand.position = self.card_in_hand.position if self.card_in_hand else (0, 0)
             return
 
+        # Play computer AI turn
         if self.computer_turn:
             self.computer_ai.play_turn()
             self.computer_ai_hand.position = self.card_in_hand.position if self.card_in_hand else (0, 0)
