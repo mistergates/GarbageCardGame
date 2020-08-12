@@ -52,14 +52,14 @@ class GameView(arcade.View):
 
     def on_update(self, delta_time):
         '''Update which runs every tick - main logic flow here'''
-        # Check to see if we have a winner
-        if not self.game_started:
-            return
-
         # Restart background music if the stream ends
         if self.window.background_music.get_stream_position() == 0.0:
             self.window.background_music.stop()
             self.window.background_music.play(volume=self.window.music_volume)
+
+        # Return if game hasn't started
+        if not self.game_started:
+            return
 
         # End round/game if there is a winner
         if self.round_winner:
@@ -80,13 +80,13 @@ class GameView(arcade.View):
             except AttributeError:
                 # Caught if we try to move the card after restarting game
                 return
-            self.computer_ai_hand.position = self.card_in_hand.position if self.card_in_hand else (0, 0)
+            self.computer_ai_hand.position = self.card_in_hand.position if self.card_in_hand else self.calc_card_pos(draw=True)
             return
 
         # Play computer AI turn
         if self.computer_turn:
             self.computer_ai.play_turn()
-            self.computer_ai_hand.position = self.card_in_hand.position if self.card_in_hand else (0, 0)
+            self.computer_ai_hand.position = self.card_in_hand.position if self.card_in_hand else self.calc_card_pos(draw=True)
 
     def on_mouse_press(self, x, y, button, modifiers):
         """Called when the user presses a mouse button"""
@@ -189,7 +189,7 @@ class GameView(arcade.View):
     def on_mouse_motion(self, x, y, dx, dy):
         """Mouse Movement"""
         # If we are holding cards, move them with the mouse
-        if self.card_in_hand and self.player_turn:
+        if self.player_turn and self.card_in_hand:
             self.card_in_hand.center_x += dx
             self.card_in_hand.center_y += dy
 
@@ -238,10 +238,14 @@ class GameView(arcade.View):
         self.audio_control_list.draw()
 
         if self.card_in_hand:
+            # self.card_in_hand.update()
+            # self.card_in_hand.update_animation()
             self.card_in_hand.draw()
 
         # Computer AI if computer's turn
         if self.computer_turn:
+            # self.computer_ai_hand.update()
+            # self.computer_ai_hand.update_animation()
             self.computer_ai_hand.draw()
 
 
@@ -449,43 +453,41 @@ class GameView(arcade.View):
             self.discard_pile_list.append(card)
 
     def move_card(self):
-        '''Computer AI to move a card from starting to end position'''
         speed = self.card_move_speed
-
-        # Speed up the movement if computer is discarding
         if list(self.target_table_card.position) == list(self.calc_card_pos(discard=True)):
             speed *= 2
 
-        x, y = self.card_in_hand.position
-
-        if self.card_in_hand.center_x != self.target_table_card.center_x:
-            if self.card_in_hand.center_x > self.target_table_card.center_x:
-                diff = self.card_in_hand.center_x - self.target_table_card.center_x
-                # self.card_in_hand.center_x -= speed if speed < diff else diff
-                # self.card_in_hand.change_x = -speed if speed < diff else -diff
-                x -= speed if speed < diff else diff
+        # Move the card up
+        if self.card_in_hand.center_x < self.target_table_card.center_x:
+            diff = (self.target_table_card.center_x - self.card_in_hand.center_x) / 2
+            if diff < speed:
+                self.card_in_hand.change_x = diff
             else:
-                diff = self.target_table_card.center_x - self.card_in_hand.center_x
-                # self.card_in_hand.center_x += speed if speed < diff else diff
-                # self.card_in_hand.change_x = speed if speed < diff else diff
-                x += speed if speed < diff else diff
-            # self.card_in_hand.update()
-
-        if self.card_in_hand.center_y != self.target_table_card.center_y:
-            if self.card_in_hand.center_y > self.target_table_card.center_y:
-                diff = self.card_in_hand.center_y - self.target_table_card.center_y
-                # self.card_in_hand.center_y -= speed if speed < diff else diff
-                # self.card_in_hand.change_y = -speed if speed < diff else -diff
-                y -= speed if speed < diff else diff
+                self.card_in_hand.change_x = speed
+        # Move the card down
+        elif self.card_in_hand.center_x > self.target_table_card.center_x:
+            diff = (self.card_in_hand.center_x - self.target_table_card.center_x) / 2
+            if diff < speed:
+                self.card_in_hand.change_x = -diff
             else:
-                diff = self.target_table_card.center_y - self.card_in_hand.center_y
-                # self.card_in_hand.center_y += speed if speed < diff else diff
-                # self.card_in_hand.change_y = speed if speed < diff else diff
-                y += speed if speed < diff else diff
-            # self.card_in_hand.update()
+                self.card_in_hand.change_x = -speed
 
-        self.card_in_hand.position = [x, y]
+        # Move the card right
+        if self.card_in_hand.center_y < self.target_table_card.center_y:
+            diff = (self.target_table_card.center_y - self.card_in_hand.center_y) / 2
+            if diff < speed:
+                self.card_in_hand.change_y = diff
+            else:
+                self.card_in_hand.change_y = speed
+        # Move the card left
+        elif self.target_table_card.center_y < self.card_in_hand.center_y:
+            diff = (self.card_in_hand.center_y - self.target_table_card.center_y) / 2
+            if diff < speed:
+                self.card_in_hand.change_y = -diff
+            else:
+                self.card_in_hand.change_y = -speed
 
+        self.card_in_hand.update()
         if list(self.card_in_hand.position) == list(self.target_table_card.position):
             self.move_card_wait = False
 
