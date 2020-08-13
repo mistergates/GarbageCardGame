@@ -1,4 +1,5 @@
 import arcade
+import time
 
 from . import cards, sprites
 from .enums import Views, Sounds, ImageAssets, Player
@@ -44,6 +45,11 @@ class GameView(arcade.View):
         self.round_winner = None
         self.game_winner = None
 
+        # Time Trackers
+        self.last_setup_time = None
+        self.last_discard_time = None
+        self.round_winner_time = None
+
         # Computer AI
         self.computer_ai_hand = None
         self.computer_ai = None
@@ -63,8 +69,9 @@ class GameView(arcade.View):
 
         # End round/game if there is a winner
         if self.round_winner:
+            if time.time() - self.round_winner_time < 5:
+                return
             self.round_over.play(self.window.volume)
-            arcade.pause(5)
             self.setup()
         if self.game_winner:
             self.window.show_view(self.window.game_over_view)
@@ -85,8 +92,16 @@ class GameView(arcade.View):
 
         # Play computer AI turn
         if self.computer_turn:
+            if self.play_number == 0 and time.time() - self.last_setup_time < 3:
+                return
             self.computer_ai.play_turn()
-            self.computer_ai_hand.position = self.card_in_hand.position if self.card_in_hand else self.calc_card_pos(draw=True)
+            if self.card_in_hand:
+                self.computer_ai_hand.position = self.card_in_hand.position
+            else:
+                if self.computer_ai.card_is_playable(self.draw_pile_list[-1]):
+                    self.computer_ai_hand.position = self.calc_card_pos(discard=True)
+                else:
+                    self.computer_ai_hand.position = self.calc_card_pos(draw=True)
 
     def on_mouse_press(self, x, y, button, modifiers):
         """Called when the user presses a mouse button"""
@@ -238,14 +253,10 @@ class GameView(arcade.View):
         self.audio_control_list.draw()
 
         if self.card_in_hand:
-            # self.card_in_hand.update()
-            # self.card_in_hand.update_animation()
             self.card_in_hand.draw()
 
         # Computer AI if computer's turn
         if self.computer_turn:
-            # self.computer_ai_hand.update()
-            # self.computer_ai_hand.update_animation()
             self.computer_ai_hand.draw()
 
 
@@ -346,6 +357,8 @@ class GameView(arcade.View):
                 self.shuffle_discard_for_draw_pile()
             elif self.player_turn and not self.is_card_playable(self.discard_pile_list[-1]):
                 self.shuffle_discard_for_draw_pile()
+
+        self.last_discard_time = time.time()
 
     def get_card_from_draw_pile(self, x, y):
         '''Sets the top card from draw pile to card in hand'''
@@ -520,6 +533,7 @@ class GameView(arcade.View):
                 # print(f'{self.game_winner.value} wins!')
             else:
                 self.round_winner = Player.player
+                self.round_winner_time = time.time()
 
         num_cards_displayed = 0
         for card in self.computer_card_list:
@@ -532,6 +546,7 @@ class GameView(arcade.View):
                 # print(f'{self.game_winner.value} wins!')
             else:
                 self.round_winner = Player.computer
+                self.round_winner_time = time.time()
 
         if self.game_winner or self.round_winner:
             self.card_in_hand.kill()
@@ -657,6 +672,8 @@ class GameView(arcade.View):
 
         # Update the window's card positions
         self.update_card_positions()
+
+        self.last_setup_time = time.time()
 
     def setup_game_controls(self):
         # Audio Controls

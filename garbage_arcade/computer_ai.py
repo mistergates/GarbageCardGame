@@ -1,4 +1,5 @@
 import arcade
+import time
 
 from . import cards, sprites
 
@@ -13,7 +14,8 @@ class ComputerAi:
             return
 
         if not self.game.card_in_hand:
-            arcade.pause(1)
+            if time.time() - self.game.last_discard_time < 1.5:
+                return
             # Draw a card from either the discard pile list (if top card is playable) or draw pile
             if len(self.game.discard_pile_list) > 1 and self.card_is_playable(self.game.discard_pile_list[-1]):
                 self.game.get_card_from_discard_pile(*self.game.calc_card_pos(discard=True))
