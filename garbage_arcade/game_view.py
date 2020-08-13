@@ -93,6 +93,7 @@ class GameView(arcade.View):
         # Play computer AI turn
         if self.computer_turn:
             if self.play_number == 0 and time.time() - self.last_setup_time < 3:
+                # Give 3 seconds before ai plays a turn if ai is starting the round
                 return
             self.computer_ai.play_turn()
             if self.card_in_hand:
@@ -195,11 +196,6 @@ class GameView(arcade.View):
 
             new_audio.position = 100, 50
             self.audio_control_list.insert(1, new_audio)
-
-                
-            # print(self.volume)
-            # if key == arcade.key.PLUS:
-            #     self.volume += .1 if self.volume <= .9 else 1
 
     def on_mouse_motion(self, x, y, dx, dy):
         """Mouse Movement"""

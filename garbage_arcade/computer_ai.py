@@ -15,6 +15,7 @@ class ComputerAi:
 
         if not self.game.card_in_hand:
             if time.time() - self.game.last_discard_time < 1.5:
+                # Give 1.5 seconds before starting turn
                 return
             # Draw a card from either the discard pile list (if top card is playable) or draw pile
             if len(self.game.discard_pile_list) > 1 and self.card_is_playable(self.game.discard_pile_list[-1]):
