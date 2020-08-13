@@ -1,5 +1,5 @@
 '''Card Library'''
-from random import sample
+from random import sample, shuffle
 
 # Constants for sizing
 CARD_SCALE = 1
@@ -25,8 +25,15 @@ COMPUTER_COLOR = 'Red'
 DRAW_PILE_COLOR = 'Green'
 CARD_BACK_VERSION = 5
 
-def build_decks(num_decks):
+def build_decks(num_decks, discard=None):
     decks = []
+
+    if discard:
+        deck = []
+        for card in discard:
+            print(card)
+            deck.append((card.value, card.suit))
+        return sample(deck, len(deck))
 
     for dummy in range(num_decks):
         deck = []

@@ -48,7 +48,7 @@ class GameView(arcade.View):
         self.computer_ai_hand = None
         self.computer_ai = None
         self.target_table_card = None
-        self.card_move_speed = 5
+        self.card_move_speed = 4
 
     def on_update(self, delta_time):
         '''Update which runs every tick - main logic flow here'''
@@ -340,8 +340,17 @@ class GameView(arcade.View):
         self.play_number += 1
         self.previous_discard_card = card
 
+        # Check for discard shuffle
+        if len(self.draw_pile_list) == 1:
+            if self.computer_turn and not self.computer_ai.card_is_playable(self.discard_pile_list[-1]):
+                self.shuffle_discard_for_draw_pile()
+            elif self.player_turn and not self.is_card_playable(self.discard_pile_list[-1]):
+                self.shuffle_discard_for_draw_pile()
+
     def get_card_from_draw_pile(self, x, y):
         '''Sets the top card from draw pile to card in hand'''
+        if len(self.draw_pile_list) <= 1:
+            return
         # Play sound
         self.draw_card_sound.play(volume=self.window.volume)
         # Grab the top card from the deck
@@ -366,12 +375,14 @@ class GameView(arcade.View):
         card_front.display = True
         # Assign the card drawn to hand
         self.card_in_hand = card_front
-        # self.previous_discard_card = card
         # Kill the card in the draw pile
         card.kill()
 
     def is_card_playable(self, card):
         """Checks to see if card in hand is playable on card"""
+        if not self.card_in_hand:
+            return
+
         if card.display is True and card.value not in cards.WILD_CARDS:
             return False
 
@@ -525,6 +536,39 @@ class GameView(arcade.View):
         if self.game_winner or self.round_winner:
             self.card_in_hand.kill()
             return True
+
+    def shuffle_discard_for_draw_pile(self):
+        '''Shuffle discard pile if we run out of cards in draw pile'''
+        deck = cards.build_decks(1, discard=self.discard_pile_list[1:])
+        self.draw_pile_list = arcade.SpriteList()
+        self.discard_pile_list = arcade.SpriteList()
+
+        # Add card placeholders:
+        self.discard_pile_list.insert(
+            0,
+            sprites.GenericImage(ImageAssets.pile_placeholder.value)
+        )
+        self.draw_pile_list.insert(
+            0,
+            sprites.GenericImage(ImageAssets.pile_placeholder.value)
+        )
+
+        # Create draw pile
+        for x in deck:
+            card = sprites.CardBack(
+                cards.DRAW_PILE_COLOR,
+                version=cards.CARD_BACK_VERSION,
+                scale=cards.CARD_SCALE
+            )
+            card.value, card.suit = x
+            card.display = False
+            self.draw_pile_list.append(card)
+
+        self.update_card_positions()
+
+        # Play shound
+        self.shuffle_sound.play(self.window.volume)
+        arcade.pause(.5)
 
     def setup(self, new_game=False):
         """Sets up the game. This should be called each time a round starts"""

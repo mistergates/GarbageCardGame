@@ -20,6 +20,10 @@ class ComputerAi:
             else:
                 self.game.get_card_from_draw_pile(*self.game.calc_card_pos(draw=True))
 
+        if not self.game.card_in_hand:
+            # Something went wrong
+            return
+
         table_card = self.get_table_card_match()
         if table_card:
             # print(f'Playing {self.game.card_in_hand.value} to {table_card.position} (current pos {self.game.card_in_hand.position})')
