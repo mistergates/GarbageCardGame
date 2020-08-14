@@ -1,8 +1,10 @@
 import arcade
 import time
 
+from itertools import zip_longest
+
 from . import cards, sprites
-from .enums import Views, Sounds, ImageAssets, Player
+from .enums import Views, Sounds, ImageAssets, Player, Pile
 from .computer_ai import ComputerAi
 
 NUMBER_OF_DECKS = 1
@@ -29,8 +31,11 @@ class GameView(arcade.View):
         self.computer_card_list = None
         self.draw_pile_list = None
         self.discard_pile_list = None
+        self.card_positions = None
 
         # Game State
+        self.cards_delt = None
+        self.deal_cards_finished = False
         self.game_started = False
         self.paused = False
         self.player_cards_remain = 10
@@ -44,6 +49,7 @@ class GameView(arcade.View):
         self.previous_discard_card = None
         self.round_winner = None
         self.game_winner = None
+        self.round_over_sound_played = False
 
         # Time Trackers
         self.last_setup_time = None
@@ -63,16 +69,23 @@ class GameView(arcade.View):
             self.window.background_music.stop()
             self.window.background_music.play(volume=self.window.music_volume)
 
+        if not self.deal_cards_finished:
+            self.deal_cards()
+            return
+
         # Return if game hasn't started
         if not self.game_started:
             return
 
         # End round/game if there is a winner
         if self.round_winner:
+            if not self.round_over_sound_played:
+                self.round_over.play(self.window.volume)
+                self.round_over_sound_played = True
             if time.time() - self.round_winner_time < 5:
                 return
-            self.round_over.play(self.window.volume)
             self.setup()
+            arcade.pause(.5)
         if self.game_winner:
             self.window.show_view(self.window.game_over_view)
 
@@ -200,7 +213,7 @@ class GameView(arcade.View):
     def on_mouse_motion(self, x, y, dx, dy):
         """Mouse Movement"""
         # If we are holding cards, move them with the mouse
-        if self.player_turn and self.card_in_hand:
+        if self.player_turn and self.card_in_hand and self.deal_cards_finished:
             self.card_in_hand.center_x += dx
             self.card_in_hand.center_y += dy
 
@@ -232,6 +245,8 @@ class GameView(arcade.View):
         # Display center text
         if self.round_winner:
             text = f'{self.round_winner.value} wins the round!'
+        elif not self.deal_cards_finished:
+            text = 'Dealing Cards'
         else:
             text = "Player's Turn" if self.player_turn else "Computer's Turn"
         self.update_center_text(text, 36, arcade.color.WHITE)
@@ -287,7 +302,7 @@ class GameView(arcade.View):
             bold=True
         )
 
-    def update_center_text(self, text, size, color):
+    def update_center_text(self, text, size=36, color=arcade.color.WHITE):
         '''Updates the text in the center of the board'''
         arcade.draw_text(
             text,
@@ -476,6 +491,8 @@ class GameView(arcade.View):
         speed = self.card_move_speed
         if list(self.target_table_card.position) == list(self.calc_card_pos(discard=True)):
             speed *= 2
+        if not self.deal_cards_finished:
+            speed *= 10
 
         # Move the card up
         if self.card_in_hand.center_x < self.target_table_card.center_x:
@@ -617,7 +634,16 @@ class GameView(arcade.View):
         self.round_winner = None
         self.play_number = 0
         self.current_round += 1
-
+        self.round_over_sound_played = False
+        self.cards_delt = []
+        self.deal_cards_finished = False
+        self.card_positions = {
+            Player.player: {},
+            Player.computer: {},
+            Pile.draw: self.calc_card_pos(draw=True),
+            Pile.discard: self.calc_card_pos(discard=True)
+        }
+        
         # Build a deck
         starting_deck = cards.build_decks(NUMBER_OF_DECKS)
 
@@ -629,6 +655,7 @@ class GameView(arcade.View):
                 scale=cards.CARD_SCALE
             )
             card.value, card.suit = starting_deck.pop(0)
+            card.position = self.card_positions[Pile.draw]
             card.display = False
             card.index = i
             self.player_card_list.append(card)
@@ -641,6 +668,7 @@ class GameView(arcade.View):
                 scale=cards.CARD_SCALE
             )
             card.value, card.suit = starting_deck.pop(0)
+            card.position = self.card_positions[Pile.draw]
             card.display = False
             card.index = i
             self.computer_card_list.append(card)
@@ -652,24 +680,104 @@ class GameView(arcade.View):
                 version=cards.CARD_BACK_VERSION,
                 scale=cards.CARD_SCALE
             )
+            card.position = self.card_positions[Pile.draw]
             card.value, card.suit = x
             card.display = False
             self.draw_pile_list.append(card)
 
         # Add card placeholders:
+        discard_placeholder = sprites.GenericImage(ImageAssets.pile_placeholder.value)
+        discard_placeholder.position = self.card_positions[Pile.discard]
         self.discard_pile_list.insert(
             0,
-            sprites.GenericImage(ImageAssets.pile_placeholder.value)
+            discard_placeholder
         )
+        draw_placeholder = sprites.GenericImage(ImageAssets.pile_placeholder.value)
+        draw_placeholder.position = self.card_positions[Pile.draw]
         self.draw_pile_list.insert(
             0,
-            sprites.GenericImage(ImageAssets.pile_placeholder.value)
+            draw_placeholder
         )
 
         # Update the window's card positions
-        self.update_card_positions()
+        # self.update_card_positions()
+        self.set_card_position_by_index()
 
+    def deal_cards(self):
+        zipped_cards = zip_longest(self.player_card_list, self.computer_card_list, fillvalue=None)
+
+        for i, card_set in enumerate(zipped_cards):
+            player_card, computer_card = card_set
+            if player_card and player_card not in self.cards_delt:
+                self.move_card_wait = True
+                self.card_in_hand = player_card
+                self.target_table_card = sprites.CardBack('Red')
+                self.target_table_card.position = self.card_positions[Player.player][i]
+                if self.card_in_hand.position == self.card_positions[Pile.draw]:
+                    self.draw_card_sound.play(volume=self.window.volume)
+                self.move_card()
+                self.computer_ai_hand.position = self.card_in_hand.position
+
+                if not self.move_card_wait:
+                    self.cards_delt.append(player_card)
+                    self.card_in_hand = None
+                    self.target_table_card = None
+                return
+            elif computer_card and computer_card not in self.cards_delt:
+                self.move_card_wait = True
+                self.card_in_hand = computer_card
+                self.target_table_card = sprites.CardBack('Red')
+                self.target_table_card.position = self.card_positions[Player.computer][i]
+                if self.card_in_hand.position == self.card_positions[Pile.draw]:
+                    self.draw_card_sound.play(volume=self.window.volume)
+                self.move_card()
+                self.computer_ai_hand.position = self.card_in_hand.position
+
+                if not self.move_card_wait:
+                    self.cards_delt.append(computer_card)
+                    self.card_in_hand = None
+                    self.target_table_card = None
+                return
+
+        self.deal_cards_finished = True
         self.last_setup_time = time.time()
+
+    def set_card_position_by_index(self):
+         # Position Player Cards
+        x, y = self.calc_card_pos(player=True)
+        x_orig = x
+        for i in range(len(self.player_card_list)):
+            if i == 5:
+                # Maximum of 5 cards per row, restart at orig x for next row
+                y -= cards.CARD_HEIGHT + cards.CARD_BUFFER_Y
+                x = x_orig
+            self.card_positions[Player.player].update({i: (x, y)})
+            x += cards.CARD_WIDTH + cards.CARD_BUFFER_X
+
+        # Position Computer cards
+        x, y = self.calc_card_pos(computer=True)
+        x_orig = x
+        for i in range(len(self.computer_card_list)):
+            if i == 5:
+                # Maximum of 5 cards per row, restart at orig x for next row
+                y += cards.CARD_HEIGHT + cards.CARD_BUFFER_Y
+                x = x_orig
+            self.card_positions[Player.computer].update({i: (x, y)})
+            x -= cards.CARD_WIDTH + cards.CARD_BUFFER_X
+
+        # print(json.dumps(self.card_positions, indent=4))
+
+        # # Position draw pile cards
+        # x, y = self.calc_card_pos(draw=True)
+        # for card in draw_pile_list:
+        #     card.position = x, y
+        #     self.draw_pile_list.append(card)
+
+        # # Position the discard pile cards
+        # x, y = self.calc_card_pos(discard=True)
+        # for card in discard_pile_list:
+        #     card.position = x, y
+        #     self.discard_pile_list.append(card)
 
     def setup_game_controls(self):
         # Audio Controls

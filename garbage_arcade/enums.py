@@ -12,6 +12,10 @@ from enum import Enum
 IMAGE_ASSETS = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'assets', 'images')
 SOUND_ASSETS = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'assets', 'sounds')
 
+class Pile(Enum):
+    draw = 'Draw'
+    discard = 'Discard'
+
 class Player(Enum):
     player = 'Player'
     computer = 'Computer'
