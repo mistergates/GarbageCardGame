@@ -1,4 +1,5 @@
 import arcade
+import sys
 
 from . import sprites
 from .enums import Views, ImageAssets, Sounds
@@ -47,7 +48,7 @@ class MainMenuView(arcade.View):
                     self.window.game_view.setup(new_game=True)
             if button.image_file_name == ImageAssets.quit_btn_hover.value:
                 self.menu_select.play(volume=self.window.volume)
-                exit()
+                sys.exit()
             if button.image_file_name == ImageAssets.rules_btn_hover.value:
                 self.menu_select.play(volume=self.window.volume)
                 self.window.show_view(self.window.rules_view)

@@ -7,10 +7,16 @@ Sound effects obtained from https://www.kenney.nl/assets
 Images obtained from https://www.kenney.nl/assets
 '''
 import os
+import sys
 from enum import Enum
 
-IMAGE_ASSETS = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'assets', 'images')
-SOUND_ASSETS = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'assets', 'sounds')
+if getattr(sys, 'frozen', False):
+    current_path = sys._MEIPASS
+else:
+    current_path = os.path.dirname(__file__)
+
+IMAGE_ASSETS = os.path.join(current_path, 'images')
+SOUND_ASSETS = os.path.join(current_path, 'sfx')
 
 class Pile(Enum):
     draw = 'Draw'

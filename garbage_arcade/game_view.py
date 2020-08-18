@@ -159,7 +159,6 @@ class GameView(arcade.View):
         for sprite in audio_control:
             # Audio Down
             if sprite.image_file_name not in (ImageAssets.audio_down.value, ImageAssets.audio_up.value):
-                print('hehehe')
                 continue
             if sprite.image_file_name == ImageAssets.audio_down.value:
                 self.window.volume -= .1 if self.window.volume >= .1 else 0
@@ -492,7 +491,7 @@ class GameView(arcade.View):
         if list(self.target_table_card.position) == list(self.calc_card_pos(discard=True)):
             speed *= 2
         if not self.deal_cards_finished:
-            speed *= 10
+            speed *= 20
 
         # Move the card up
         if self.card_in_hand.center_x < self.target_table_card.center_x:
@@ -631,6 +630,9 @@ class GameView(arcade.View):
         self.discard_pile_list = arcade.SpriteList()
         self.game_started = True
         self.card_in_hand = None
+        self.move_card_wait = False
+        self.target_table_card = None
+        self.previous_discard_card = None
         self.round_winner = None
         self.play_number = 0
         self.current_round += 1
@@ -643,7 +645,8 @@ class GameView(arcade.View):
             Pile.draw: self.calc_card_pos(draw=True),
             Pile.discard: self.calc_card_pos(discard=True)
         }
-        
+        self.computer_ai = ComputerAi(self)
+
         # Build a deck
         starting_deck = cards.build_decks(NUMBER_OF_DECKS)
 
@@ -716,8 +719,6 @@ class GameView(arcade.View):
                 if self.card_in_hand.position == self.card_positions[Pile.draw]:
                     self.draw_card_sound.play(volume=self.window.volume)
                 self.move_card()
-                self.computer_ai_hand.position = self.card_in_hand.position
-
                 if not self.move_card_wait:
                     self.cards_delt.append(player_card)
                     self.card_in_hand = None
@@ -731,7 +732,6 @@ class GameView(arcade.View):
                 if self.card_in_hand.position == self.card_positions[Pile.draw]:
                     self.draw_card_sound.play(volume=self.window.volume)
                 self.move_card()
-                self.computer_ai_hand.position = self.card_in_hand.position
 
                 if not self.move_card_wait:
                     self.cards_delt.append(computer_card)
