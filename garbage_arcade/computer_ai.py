@@ -13,6 +13,9 @@ class ComputerAi:
         if not self.game.computer_turn:
             return
 
+        if not self.game.deal_cards_finished:
+            return
+
         if not self.game.card_in_hand:
             if time.time() - self.game.last_discard_time < 1.5:
                 # Give 1.5 seconds before starting turn
