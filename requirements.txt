@@ -22,7 +22,7 @@ pycparser==2.20
 pygame==1.9.6
 pygame-ai==0.1.2
 pyglet==1.5.5
-Pygments==2.6.1
+Pygments==2.7.4
 pyinstaller==4.0
 pyinstaller-hooks-contrib==2020.7
 pylint==2.5.2
